@@ -1,0 +1,228 @@
+:root {
+    --primary-color: #2c3e50;
+    --sidebar-bg: #222d32;
+    --sidebar-hover: #1e282c;
+    --text-color: #333;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f4f6f9;
+    color: var(--text-color);
+}
+
+/* Loader */
+#loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.5s ease;
+}
+
+.loader {
+    border: 5px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 5px solid #3498db;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Sidebar */
+.main-wrapper {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    min-height: 100vh;
+}
+
+#sidebar {
+    min-width: 250px;
+    max-width: 250px;
+    background: var(--sidebar-bg);
+    color: #fff;
+    transition: all 0.3s;
+}
+
+#sidebar.active {
+    margin-left: -250px;
+}
+
+.sidebar-header {
+    padding: 20px;
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid #1a2226;
+}
+
+#sidebar ul.components {
+    padding: 20px 0;
+}
+
+#sidebar ul p {
+    color: #fff;
+    padding: 10px;
+}
+
+#sidebar ul li a {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    display: block;
+    color: #b8c7ce;
+    text-decoration: none;
+}
+
+#sidebar ul li a:hover {
+    color: #fff;
+    background: var(--sidebar-hover);
+    border-left: 3px solid #3c8dbc;
+}
+
+#sidebar ul li.active > a, a[aria-expanded="true"] {
+    color: #fff;
+    background: var(--sidebar-hover);
+    border-left: 3px solid #3c8dbc;
+}
+
+/* Content Area */
+.content-area {
+    width: 100%;
+    min-height: 100vh;
+    transition: all 0.3s;
+    background: #f4f6f9;
+}
+
+.navbar {
+    padding: 15px 10px;
+    background: #fff;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card-body.p-0 .table {
+    margin-bottom: 0;
+}
+
+/* NOC Dashboard Styles */
+.noc-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.noc-card {
+    background: #1e1e2d;
+    border-radius: 12px;
+    padding: 20px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+}
+.noc-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+}
+
+.noc-card.online { border-bottom: 4px solid #198754; }
+.noc-card.alerta { border-bottom: 4px solid #ffc107; }
+.noc-card.offline { border-bottom: 4px solid #dc3545; }
+
+/* Blinking Red Animation */
+@keyframes blinkerRed {
+    0% { background-color: #1e1e2d; }
+    50% { background-color: rgba(220, 53, 69, 0.4); box-shadow: 0 0 20px rgba(220,53,69,0.5); }
+    100% { background-color: #1e1e2d; }
+}
+.noc-card.offline {
+    animation: blinkerRed 1.5s infinite;
+}
+
+/* CPU Dial */
+.cpu-dial {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    position: relative;
+    background: conic-gradient(#198754 var(--cpu-deg, 0deg), #2b2b3c 0deg);
+}
+.cpu-dial::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    background: #1e1e2d;
+    border-radius: 50%;
+}
+.cpu-dial.offline::before {
+    background: transparent;
+}
+.cpu-dial span {
+    position: relative;
+    z-index: 1;
+}
+
+.cpu-dial.high { background: conic-gradient(#dc3545 var(--cpu-deg, 0deg), #2b2b3c 0deg); }
+.cpu-dial.warning { background: conic-gradient(#ffc107 var(--cpu-deg, 0deg), #2b2b3c 0deg); }
+
+/* DataTables */
+.table-responsive {
+    border-radius: 8px;
+}
+
+/* Table Wrapper for consistent card style */
+.table-wrapper {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Overlay & Responsive */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: all 0.5s ease-in-out;
+}
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    #sidebar {
+        margin-left: -250px;
+        position: fixed;
+        z-index: 999;
+        height: 100vh;
+    }
+    #sidebar.active {
+        margin-left: 0;
+    }
+}
