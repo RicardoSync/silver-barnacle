@@ -69,6 +69,11 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="bi bi-graph-up me-2"></i> Recursos
                     </a>
                 </li>
+                <li>
+                    <a href="#" data-view="historial_caidas">
+                        <i class="bi bi-activity me-2"></i> Monitor de Caídas
+                    </a>
+                </li>
 
                 <li>
                     <small class="text-uppercase fw-bold px-3 pt-3 pb-1 d-block text-muted" style="font-size: 10px; letter-spacing: 1px; color: #95a5a6 !important;">Administración</small>
@@ -152,6 +157,7 @@ if (!isset($_SESSION['user_id'])) {
 <script src="js/equipos_detalles.js?v=<?php echo time(); ?>"></script>
 <script src="js/whatsapp_config.js?v=<?php echo time(); ?>"></script>
 <script src="js/contactos_alerta.js?v=<?php echo time(); ?>"></script>
+<script src="js/historial_caidas.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

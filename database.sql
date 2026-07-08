@@ -138,3 +138,19 @@ CREATE TABLE IF NOT EXISTS whatsapp_config (
 -- Insertar el registro único de configuración de WhatsApp si no existe
 INSERT IGNORE INTO whatsapp_config (id, waha_api_key, waha_url, url_sistema, api_secret, activo) 
 VALUES (1, '', 'http://localhost:3000/api/sendText', 'http://localhost/MiWISPro', 'WISP_SEC_2026', 1);
+
+-- 12. TABLA HISTORIAL DE CAÍDAS (Monitoreo)
+CREATE TABLE IF NOT EXISTS historial_caidas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nodo_id INT NOT NULL,
+    tipo_nodo ENUM('mikrotik', 'equipo') NOT NULL,
+    nombre_nodo VARCHAR(255) NOT NULL,
+    fecha_caida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_recuperacion TIMESTAMP NULL DEFAULT NULL,
+    duracion_minutos INT DEFAULT 0,
+    estado ENUM('en_curso', 'resuelta') DEFAULT 'en_curso',
+    notificado_3m BOOLEAN DEFAULT 0,
+    notificado_30m BOOLEAN DEFAULT 0,
+    INDEX idx_nodo_tipo (nodo_id, tipo_nodo),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB;

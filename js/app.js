@@ -139,6 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initContactosAlertaModule === 'function') {
                 initContactosAlertaModule();
             }
+        } else if (viewName === 'historial_caidas') {
+            if (typeof initHistorialCaidasModule === 'function') {
+                initHistorialCaidasModule();
+            }
         } else {
             // Initialize Default DataTables for other views
             if ($.fn.DataTable.isDataTable('.datatable')) {
