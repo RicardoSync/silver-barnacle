@@ -131,6 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initEquiposDetallesModule === 'function') {
                 initEquiposDetallesModule();
             }
+        } else if (viewName === 'whatsapp_config') {
+            if (typeof initWhatsappConfigModule === 'function') {
+                initWhatsappConfigModule();
+            }
+        } else if (viewName === 'contactos_alerta') {
+            if (typeof initContactosAlertaModule === 'function') {
+                initContactosAlertaModule();
+            }
         } else {
             // Initialize Default DataTables for other views
             if ($.fn.DataTable.isDataTable('.datatable')) {

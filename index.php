@@ -78,6 +78,16 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="bi bi-people-fill me-2"></i> Usuarios
                     </a>
                 </li>
+                <li>
+                    <a href="#" data-view="whatsapp_config">
+                        <i class="bi bi-whatsapp me-2"></i> WhatsApp (WAHA)
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="contactos_alerta">
+                        <i class="bi bi-telephone-fill me-2"></i> Números de Alerta
+                    </a>
+                </li>
 
                 <li class="mt-4">
                     <hr class="text-white-50 my-2">
@@ -131,15 +141,17 @@ if (!isset($_SESSION['user_id'])) {
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="js/app.js"></script>
-<script src="js/mikrotik.js"></script>
+<script src="js/app.js?v=<?php echo time(); ?>"></script>
+<script src="js/mikrotik.js?v=<?php echo time(); ?>"></script>
 <script src="js/detalles.js?v=<?php echo time(); ?>"></script>
 <script src="js/dashboard.js?v=<?php echo time(); ?>"></script>
-<script src="js/recursos.js"></script>
-<script src="js/usuarios.js"></script>
-<script src="js/alertas.js"></script>
+<script src="js/recursos.js?v=<?php echo time(); ?>"></script>
+<script src="js/usuarios.js?v=<?php echo time(); ?>"></script>
+<script src="js/alertas.js?v=<?php echo time(); ?>"></script>
 <script src="js/equipos.js?v=<?php echo time(); ?>"></script>
 <script src="js/equipos_detalles.js?v=<?php echo time(); ?>"></script>
+<script src="js/whatsapp_config.js?v=<?php echo time(); ?>"></script>
+<script src="js/contactos_alerta.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

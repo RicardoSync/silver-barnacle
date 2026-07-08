@@ -113,3 +113,28 @@ CREATE TABLE IF NOT EXISTS historico_pings_equipos (
     FOREIGN KEY (equipo_id) REFERENCES equipos(id) ON DELETE CASCADE,
     INDEX idx_equipo_ping_fecha (equipo_id, fecha_registro)
 ) ENGINE=InnoDB;
+
+-- 10. TABLA DE NÚMEROS DE ALERTA
+CREATE TABLE IF NOT EXISTS contactos_alerta (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(255) NOT NULL,
+    telefono VARCHAR(50) NOT NULL,
+    estado TINYINT(1) DEFAULT 1,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+-- 11. CONFIGURACIÓN DE WHATSAPP (WAHA API)
+CREATE TABLE IF NOT EXISTS whatsapp_config (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    waha_api_key VARCHAR(255) NOT NULL COMMENT 'Tu API Key',
+    waha_url VARCHAR(255) NOT NULL DEFAULT 'http://localhost:3000/api/sendText',
+    url_sistema VARCHAR(255) NOT NULL COMMENT 'URL publica para PDFs',
+    api_secret VARCHAR(100) NOT NULL COMMENT 'Token para descargar PDFs sin login',
+    enlaces_publicos_activos TINYINT(1) DEFAULT 1,
+    activo TINYINT(1) DEFAULT 1,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+-- Insertar el registro único de configuración de WhatsApp si no existe
+INSERT IGNORE INTO whatsapp_config (id, waha_api_key, waha_url, url_sistema, api_secret, activo) 
+VALUES (1, '', 'http://localhost:3000/api/sendText', 'http://localhost/MiWISPro', 'WISP_SEC_2026', 1);
