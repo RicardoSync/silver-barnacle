@@ -274,9 +274,24 @@ switch ($action) {
                 if ($n['tipo'] === 'mikrotik') {
                     $traf_mbps = $n['trafico_total'] !== null ? ($n['trafico_total'] / 1000000) : 0;
                     $n['trafico_mbps'] = round($traf_mbps, 2);
+                    
+                    $stmtP = $con->prepare("SELECT ms FROM historico_pings WHERE mikrotik_id = ? AND tipo = 'servidor' ORDER BY fecha_registro DESC LIMIT 10");
+                    $stmtP->execute([$n['id']]);
                 } else {
                     $n['trafico_mbps'] = 'N/A';
+                    
+                    $stmtP = $con->prepare("SELECT ms FROM historico_pings_equipos WHERE equipo_id = ? ORDER BY fecha_registro DESC LIMIT 10");
+                    $stmtP->execute([$n['id']]);
                 }
+                
+                $pings_bd = $stmtP->fetchAll(PDO::FETCH_COLUMN);
+                $pings_array = array_reverse(array_map('intval', $pings_bd));
+                // Add the current real ping to the history
+                if ($ping_real > -1) {
+                    $pings_array[] = $ping_real;
+                    if (count($pings_array) > 10) array_shift($pings_array);
+                }
+                $n['ping_history'] = $pings_array;
                 
                 $estado = 'online';
                 // Consideramos offline si no hay ping registrado o es 0 (falla)

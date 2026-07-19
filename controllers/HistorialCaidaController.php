@@ -15,6 +15,9 @@ switch ($action) {
         $dias = isset($_GET['dias']) ? (int)$_GET['dias'] : 7;
         $controller->obtenerGrafica($dias);
         break;
+    case 'activas':
+        $controller->obtenerActivas();
+        break;
 }
 
 class HistorialCaidaController {
@@ -52,6 +55,13 @@ class HistorialCaidaController {
             "data" => $data,
             "nodos" => $nodos
         ]);
+    }
+
+    public function obtenerActivas() {
+        require_once __DIR__ . '/../includes/config.php';
+        $con = (new Conexion())->conectar();
+        $stmt = $con->query("SELECT * FROM historial_caidas WHERE estado = 'en_curso' ORDER BY fecha_caida DESC");
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 }
 ?>

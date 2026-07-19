@@ -12,6 +12,9 @@ switch ($action) {
     case 'guardar':
         $controller->guardar();
         break;
+    case 'enviar_prueba':
+        $controller->enviarPrueba();
+        break;
 }
 
 class WhatsappConfigController {
@@ -47,6 +50,33 @@ class WhatsappConfigController {
                 echo json_encode(["status" => "success", "message" => "Configuración actualizada correctamente"]);
             } else {
                 echo json_encode(["status" => "error", "message" => "Error al actualizar la configuración"]);
+            }
+        }
+    }
+
+    public function enviarPrueba() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $telefono = $_POST['telefono'] ?? '';
+            if (empty($telefono)) {
+                echo json_encode(["status" => "error", "message" => "El número de teléfono es requerido"]);
+                return;
+            }
+            
+            require_once __DIR__ . '/../includes/config.php';
+            require_once __DIR__ . '/../includes/whatsapp_helper.php';
+            
+            try {
+                $con = (new Conexion())->conectar();
+                $mensaje = "¡Hola! Este es un mensaje de prueba desde tu sistema de Monitoreo WISP (MiWISPro/Elissa). Si recibes esto, tu API de WAHA está funcionando correctamente. ✅";
+                $res = enviarNotificacionCustomWhatsApp($con, $telefono, $mensaje);
+                
+                if ($res['success']) {
+                    echo json_encode(["status" => "success", "message" => "Mensaje enviado exitosamente a $telefono"]);
+                } else {
+                    echo json_encode(["status" => "error", "message" => $res['error']]);
+                }
+            } catch (\Exception $e) {
+                echo json_encode(["status" => "error", "message" => "Excepción: " . $e->getMessage()]);
             }
         }
     }

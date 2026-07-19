@@ -6,6 +6,13 @@ function initDashboardModule() {
     if(dashboardInterval) clearInterval(dashboardInterval);
     // Auto refresh every 30 seconds
     dashboardInterval = setInterval(loadDashboardData, 30000);
+
+    // Inject tooltip if not exists
+    if (!document.getElementById('hex-tooltip')) {
+        const tt = document.createElement('div');
+        tt.id = 'hex-tooltip';
+        document.body.appendChild(tt);
+    }
 }
 
 function loadDashboardData() {
@@ -24,55 +31,41 @@ function loadDashboardData() {
             const grid = document.getElementById('noc-grid');
             grid.innerHTML = '';
             
+            // Ordenar nodos para que los caídos/alertados aparezcan primero
+            nodos.sort((a, b) => {
+                let getPriority = (node) => {
+                    if (node.estado_noc === 'offline') return 3;
+                    if (node.estado_noc === 'alerta') return 2;
+                    return 1;
+                };
+                let pA = getPriority(a);
+                let pB = getPriority(b);
+                if (pA !== pB) return pB - pA;
+                return a.nombre.localeCompare(b.nombre);
+            });
+            
             nodos.forEach(n => {
                 let cardClass = 'online';
-                let iconClass = 'text-success bi-check-circle-fill';
+                let iconClass = 'bi-hdd-network';
                 let stateText = 'Online';
                 
                 if (n.estado_noc === 'offline') {
                     cardClass = 'offline';
-                    iconClass = 'text-danger bi-x-circle-fill';
+                    iconClass = 'bi-x-octagon';
                     stateText = 'Offline';
                 } else if (n.estado_noc === 'alerta') {
                     cardClass = 'alerta';
-                    iconClass = 'text-warning bi-exclamation-triangle-fill';
+                    iconClass = 'bi-exclamation-triangle';
                     stateText = 'Alerta';
                 }
                 
                 const ping = n.ultimo_ping !== null ? n.ultimo_ping + ' ms' : '--';
                 
-                let cpuHtml = '';
-                if (n.tipo === 'equipo') {
-                    let borderCol = '#0dcaf0';
-                    if (cardClass === 'offline') borderCol = '#dc3545';
-                    else if (cardClass === 'alerta') borderCol = '#ffc107';
-
-                    cpuHtml = `
-                        <div class="cpu-dial me-3 d-flex align-items-center justify-content-center" style="background: #2b2b3c; border: 3px solid ${borderCol};">
-                            <i class="bi bi-hdd-network ${cardClass === 'offline' ? 'text-danger' : 'text-info'} fs-5"></i>
-                        </div>
-                    `;
-                } else {
+                let cpuStr = 'N/A';
+                if (n.tipo !== 'equipo') {
                     let cpuVal = n.cpu_uso !== null ? parseInt(n.cpu_uso) : 0;
-                    let cpuDeg = (cpuVal / 100) * 360;
-                    let cpuStr = n.cpu_uso !== null ? cpuVal + '%' : 'N/A';
-                    
-                    let dialClass = '';
-                    if(cardClass === 'offline') {
-                        dialClass = 'offline';
-                        cpuDeg = 0;
-                        cpuStr = 'OFF';
-                    } else if (cpuVal > 80) {
-                        dialClass = 'high';
-                    } else if (cpuVal > 50) {
-                        dialClass = 'warning';
-                    }
-
-                    cpuHtml = `
-                        <div class="cpu-dial ${dialClass} me-3" style="--cpu-deg: ${cpuDeg}deg;">
-                            <span>${cpuStr}</span>
-                        </div>
-                    `;
+                    cpuStr = n.cpu_uso !== null ? cpuVal + '%' : 'N/A';
+                    if (cardClass === 'offline') cpuStr = 'OFF';
                 }
 
                 const clickAction = n.tipo === 'equipo' 
@@ -80,32 +73,23 @@ function loadDashboardData() {
                     : `loadView('mikrotik/detalles', {id: ${n.id}})`;
 
                 const trafficDisplay = n.tipo === 'equipo' ? 'N/A' : `${n.trafico_mbps} Mbps`;
+                const safeName = n.nombre.replace(/"/g, '&quot;');
                 
                 grid.innerHTML += `
-                    <div class="noc-card ${cardClass}" onclick="${clickAction}">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="d-flex align-items-center">
-                                ${cpuHtml}
-                                <div>
-                                    <h6 class="fw-bold mb-0 text-truncate text-white" style="max-width: 130px;" title="${n.nombre}">${n.nombre}</h6>
-                                    <div class="small text-white-50"><i class="bi bi-hdd-network"></i> ${n.ip_address}</div>
-                                </div>
-                            </div>
-                            <i class="bi ${iconClass} fs-5" title="${stateText}"></i>
-                        </div>
-                        
-                        <div class="mt-auto pt-3 border-top" style="border-color: rgba(255,255,255,0.1) !important;">
-                            <div class="d-flex justify-content-between text-center">
-                                <div>
-                                    <div class="small text-white-50" style="font-size: 11px;">LATENCIA</div>
-                                    <div class="fw-bold ${n.ultimo_ping > 150 ? 'text-warning' : 'text-white'}">${ping}</div>
-                                </div>
-                                <div>
-                                    <div class="small text-white-50" style="font-size: 11px;">TRÁFICO</div>
-                                    <div class="fw-bold text-info">${trafficDisplay}</div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="noc-hexagon ${cardClass}" 
+                         onclick="${clickAction}"
+                         data-nombre="${safeName}"
+                         data-ip="${n.ip_address}"
+                         data-ping="${ping}"
+                         data-cpu="${cpuStr}"
+                         data-trafico="${trafficDisplay}"
+                         data-estado="${stateText}"
+                         data-tipo="${n.tipo}"
+                         data-history="${JSON.stringify(n.ping_history)}"
+                         onmouseenter="showHexTooltip(event, this)"
+                         onmouseleave="hideHexTooltip()">
+                        <i class="bi ${iconClass} hex-icon"></i>
+                        <div class="hex-title" title="${safeName}">${safeName}</div>
                     </div>
                 `;
             });
@@ -119,5 +103,105 @@ function loadDashboardData() {
 const origLoadViewDB = window.loadView;
 window.loadView = function(viewName, params = null) {
     if(dashboardInterval) clearInterval(dashboardInterval);
+    hideHexTooltip();
     origLoadViewDB(viewName, params);
 }
+
+// Tooltip functions for Honeycomb Grid
+let hexTooltipChart = null;
+
+window.showHexTooltip = function(e, element) {
+    const tt = document.getElementById('hex-tooltip');
+    if (!tt) return;
+    
+    const ds = element.dataset;
+    const isOffline = ds.estado === 'Offline';
+    const isAlerta = ds.estado === 'Alerta';
+    const statusColor = isOffline ? 'text-danger' : (isAlerta ? 'text-warning' : 'text-success');
+    const pingVal = parseInt(ds.ping);
+    const pingColor = (!isNaN(pingVal) && pingVal > 150) ? 'text-warning' : '';
+    
+    let extraHtml = '';
+    if (ds.tipo !== 'equipo') {
+        extraHtml = `
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-white-50">CPU:</span> 
+                <span>${ds.cpu}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-white-50">Tráfico:</span> 
+                <span class="text-info">${ds.trafico}</span>
+            </div>
+        `;
+    } else {
+        extraHtml = `<div class="mb-2"></div>`;
+    }
+    
+    tt.innerHTML = `
+        <div class="fw-bold border-bottom border-secondary pb-1 mb-2 text-info">
+            <i class="bi bi-router"></i> ${ds.nombre}
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span class="text-white-50">Estado:</span> 
+            <span class="fw-bold ${statusColor}">${ds.estado}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span class="text-white-50">IP:</span> 
+            <span>${ds.ip}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+            <span class="text-white-50">Ping:</span> 
+            <span class="fw-bold ${pingColor}">${ds.ping}</span>
+        </div>
+        ${extraHtml}
+        <div style="height: 60px; width: 100%; mt-2">
+            <canvas id="hex-tooltip-chart"></canvas>
+        </div>
+    `;
+    
+    tt.style.display = 'block';
+    
+    const rect = element.getBoundingClientRect();
+    tt.style.left = (rect.left + rect.width / 2 + window.scrollX) + 'px';
+    tt.style.top = (rect.top + window.scrollY) + 'px';
+    
+    // Initialize mini chart
+    let history = [];
+    try { history = JSON.parse(ds.history || '[]'); } catch(e){}
+    
+    const ctx = document.getElementById('hex-tooltip-chart').getContext('2d');
+    if (hexTooltipChart) hexTooltipChart.destroy();
+    
+    const chartColor = isOffline ? '#dc3545' : (isAlerta ? '#ffc107' : '#198754');
+    
+    hexTooltipChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: history.map((_, i) => ''),
+            datasets: [{
+                data: history,
+                borderColor: chartColor,
+                backgroundColor: chartColor + '33', // 20% opacity
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { display: false },
+                y: { display: false, min: 0 }
+            },
+            layout: { padding: 0 }
+        }
+    });
+};
+
+window.hideHexTooltip = function() {
+    const tt = document.getElementById('hex-tooltip');
+    if(tt) tt.style.display = 'none';
+};

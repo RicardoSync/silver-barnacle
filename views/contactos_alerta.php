@@ -1,8 +1,13 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-telephone-fill text-primary me-2"></i> Números de Alerta</h2>
-    <button class="btn btn-primary shadow-sm" onclick="openModalNuevoContacto()">
-        <i class="bi bi-plus-circle me-1"></i> Nuevo Contacto
-    </button>
+    <div>
+        <button class="btn btn-secondary shadow-sm me-2" onclick="openModalPruebaApi()">
+            <i class="bi bi-chat-dots me-1"></i> Prueba de API
+        </button>
+        <button class="btn btn-primary shadow-sm" onclick="openModalNuevoContacto()">
+            <i class="bi bi-plus-circle me-1"></i> Nuevo Contacto
+        </button>
+    </div>
 </div>
 
 <div class="card shadow-sm border-0">

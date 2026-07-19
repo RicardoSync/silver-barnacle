@@ -64,6 +64,57 @@ switch ($action) {
         echo json_encode(['status' => 'success']);
         break;
 
+    case 'getNuevasAlertasWeb':
+        $last_alerta_id = isset($_GET['last_alerta_id']) ? intval($_GET['last_alerta_id']) : 0;
+        $last_caida_id = isset($_GET['last_caida_id']) ? intval($_GET['last_caida_id']) : 0;
+
+        // Fase de inicialización para que el cliente sepa desde dónde empezar
+        if ($last_alerta_id === 0 && $last_caida_id === 0) {
+            $maxA = $con->query("SELECT MAX(id) FROM alertas")->fetchColumn();
+            $maxC = $con->query("SELECT MAX(id) FROM historial_caidas")->fetchColumn();
+            echo json_encode([
+                'status' => 'init',
+                'last_alerta_id' => $maxA ? intval($maxA) : 0,
+                'last_caida_id' => $maxC ? intval($maxC) : 0
+            ]);
+            exit;
+        }
+
+        $nuevas_alertas = [];
+        $nuevas_caidas = [];
+
+        try {
+            // Buscar nuevas alertas
+            $stmt1 = $con->prepare("
+                SELECT a.id, a.tipo, a.mensaje, a.fecha_registro, m.nombre as router 
+                FROM alertas a 
+                JOIN mikrotiks m ON a.mikrotik_id = m.id 
+                WHERE a.id > ? 
+                ORDER BY a.id ASC
+            ");
+            $stmt1->execute([$last_alerta_id]);
+            $nuevas_alertas = $stmt1->fetchAll(PDO::FETCH_ASSOC);
+
+            // Buscar nuevas caídas (en curso)
+            $stmt2 = $con->prepare("
+                SELECT id, tipo_nodo, nombre_nodo, fecha_caida, estado 
+                FROM historial_caidas 
+                WHERE id > ? AND estado = 'en_curso'
+                ORDER BY id ASC
+            ");
+            $stmt2->execute([$last_caida_id]);
+            $nuevas_caidas = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'status' => 'success',
+                'alertas' => $nuevas_alertas,
+                'caidas' => $nuevas_caidas
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
     default:
         echo json_encode(['status' => 'error', 'message' => 'Acción no válida']);
 }

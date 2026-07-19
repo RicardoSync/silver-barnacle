@@ -88,6 +88,7 @@ if (isset($_SESSION['user_id'])) {
 
 <div class="login-box">
     <div class="login-header">
+        <img src="assets/img/logo.png" alt="Elissa Logo" style="max-height: 80px; margin-bottom: 15px;">
         <h2><b>Elissa</b> Monitor</h2>
     </div>
     <div class="login-card card">
@@ -109,7 +110,7 @@ if (isset($_SESSION['user_id'])) {
         </div>
     </div>
     <div class="credits">
-        Desarrollado por Richard Escobedo
+        Desarrollador por Ricardo Escobedo - 2026
     </div>
 </div>
 

@@ -108,3 +108,39 @@ window.eliminarContacto = function(id) {
         }
     });
 };
+
+window.openModalPruebaApi = function() {
+    Swal.fire({
+        title: 'Enviar Mensaje de Prueba',
+        input: 'text',
+        inputLabel: 'Número de Teléfono (con código de país)',
+        inputPlaceholder: 'Ej. 5215512345678',
+        showCancelButton: true,
+        confirmButtonText: '<i class="bi bi-send"></i> Enviar',
+        cancelButtonText: 'Cancelar',
+        showLoaderOnConfirm: true,
+        preConfirm: (numero) => {
+            if (!numero) {
+                Swal.showValidationMessage('El número es requerido');
+                return false;
+            }
+            return $.ajax({
+                url: 'controllers/WhatsappConfigController.php?action=enviar_prueba',
+                type: 'POST',
+                data: { telefono: numero },
+                dataType: 'json'
+            }).catch(error => {
+                Swal.showValidationMessage(`Request failed: ${error.statusText || error}`);
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (result.value.status === 'success') {
+                Swal.fire('Enviado', result.value.message, 'success');
+            } else {
+                Swal.fire('Error', result.value.message || 'No se pudo enviar el mensaje', 'error');
+            }
+        }
+    });
+};

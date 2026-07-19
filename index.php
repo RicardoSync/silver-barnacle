@@ -14,7 +14,7 @@ if (!isset($_SESSION['user_id'])) {
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="css/style.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=<?php echo time(); ?>">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     
     <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
@@ -34,8 +34,8 @@ if (!isset($_SESSION['user_id'])) {
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header text-center">
-                <!-- <img src="assets/img/logo.png" alt="Logo" style="max-height: 40px; margin-bottom: 10px;"> -->
-                <h4 class="mb-0 mt-3">Elissa</h4>
+                <img src="assets/img/logo.png" alt="Logo" style="max-height: 50px; margin-bottom: 10px; margin-top: 15px;">
+                <h4 class="mb-0">Elissa</h4>
                 <small class="text-white-50 mt-1 d-block text-truncate px-2" title="<?php echo htmlspecialchars($_SESSION['user_rol']); ?>">
                     <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>
                 </small>
@@ -50,6 +50,11 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="bi bi-speedometer2 me-2"></i> Inicio
                     </a>
                 </li>
+                <li>
+                    <a href="#" data-view="noc">
+                        <i class="bi bi-tv me-2"></i> Modo NOC
+                    </a>
+                </li>
 
                 <li>
                     <small class="text-uppercase fw-bold px-3 pt-3 pb-1 d-block text-muted" style="font-size: 10px; letter-spacing: 1px; color: #95a5a6 !important;">Infraestructura</small>
@@ -57,6 +62,11 @@ if (!isset($_SESSION['user_id'])) {
                 <li>
                     <a href="#" data-view="mikrotiks">
                         <i class="bi bi-router me-2"></i> MikroTiks
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="analiticas">
+                        <i class="bi bi-bar-chart-fill me-2"></i> Estadísticas
                     </a>
                 </li>
                 <li>
@@ -100,6 +110,9 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="bi bi-box-arrow-left me-2"></i> Cerrar Sesión
                     </a>
                 </li>
+                <li class="mt-auto pt-5 pb-3 text-center">
+                    <small class="text-white-50" style="font-size: 11px;">Desarrollador por Ricardo Escobedo - 2026</small>
+                </li>
             </ul>
         </nav>
 
@@ -138,6 +151,10 @@ if (!isset($_SESSION['user_id'])) {
             <div class="container-fluid p-4" id="main-content">
                 <!-- Vistas cargadas dinámicamente -->
             </div>
+            
+            <div class="container-fluid px-4 pb-3 pt-2 text-end">
+                <small class="text-muted fw-bold" style="font-size: 12px;">Desarrollador por Ricardo Escobedo - 2026</small>
+            </div>
         </div>
     </div>
 
@@ -158,6 +175,8 @@ if (!isset($_SESSION['user_id'])) {
 <script src="js/whatsapp_config.js?v=<?php echo time(); ?>"></script>
 <script src="js/contactos_alerta.js?v=<?php echo time(); ?>"></script>
 <script src="js/historial_caidas.js?v=<?php echo time(); ?>"></script>
+<script src="js/analiticas.js?v=<?php echo time(); ?>"></script>
+<script src="js/noc.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

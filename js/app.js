@@ -143,6 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initHistorialCaidasModule === 'function') {
                 initHistorialCaidasModule();
             }
+        } else if (viewName === 'analiticas') {
+            if (typeof initAnaliticasModule === 'function') {
+                initAnaliticasModule();
+            }
+        } else if (viewName === 'noc') {
+            if (typeof initNocModule === 'function') {
+                initNocModule();
+            }
         } else {
             // Initialize Default DataTables for other views
             if ($.fn.DataTable.isDataTable('.datatable')) {
@@ -180,6 +188,82 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // Engine de Alertas en Vivo (Toasts)
+    let lastAlertaId = 0;
+    let lastCaidaId = 0;
+    const alertAudio = new Audio('assets/audio/alert.mp3');
+    
+    function initAlertPolling() {
+        $.ajax({
+            url: 'controllers/NotificacionController.php',
+            type: 'GET',
+            data: { action: 'getNuevasAlertasWeb', last_alerta_id: 0, last_caida_id: 0 },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'init') {
+                    lastAlertaId = res.last_alerta_id;
+                    lastCaidaId = res.last_caida_id;
+                    setInterval(checkNuevasAlertas, 15000);
+                }
+            }
+        });
+    }
+
+    function checkNuevasAlertas() {
+        $.ajax({
+            url: 'controllers/NotificacionController.php',
+            type: 'GET',
+            data: { action: 'getNuevasAlertasWeb', last_alerta_id: lastAlertaId, last_caida_id: lastCaidaId },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    let hayNuevas = false;
+                    
+                    if (res.caidas && res.caidas.length > 0) {
+                        res.caidas.forEach(c => {
+                            if (c.id > lastCaidaId) lastCaidaId = c.id;
+                            mostrarToastAlerta(`CRÍTICO: Nodo ${c.nombre_nodo} CAÍDO.`, 'error');
+                            hayNuevas = true;
+                        });
+                    }
+
+                    if (res.alertas && res.alertas.length > 0) {
+                        res.alertas.forEach(a => {
+                            if (a.id > lastAlertaId) lastAlertaId = a.id;
+                            let icon = a.tipo === 'offline' ? 'error' : (a.tipo === 'latencia' || a.tipo === 'cpu' ? 'warning' : 'info');
+                            mostrarToastAlerta(`${a.router}: ${a.mensaje}`, icon);
+                            hayNuevas = true;
+                        });
+                    }
+                    
+                    if (hayNuevas) {
+                        // Reproducir audio sin bloquear la UI
+                        alertAudio.play().catch(e => console.log('El navegador bloqueó el autoplay del audio.'));
+                    }
+                }
+            }
+        });
+    }
+    
+    function mostrarToastAlerta(mensaje, icon) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: icon,
+            title: mensaje,
+            showConfirmButton: false,
+            timer: 8000,
+            timerProgressBar: true,
+            background: icon === 'error' ? '#fdecea' : '#fff',
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
+    }
+
+    initAlertPolling();
 
     // Cargar vista inicial
     loadView('dashboard');
