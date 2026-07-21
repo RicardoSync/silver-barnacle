@@ -1,4 +1,32 @@
 let dashboardInterval;
+let previousNodeStates = {}; // Track state for animations
+let criticalAlertTimeout;
+
+window.showCriticalAlert = function(text) {
+    const overlay = document.getElementById('critical-alert-overlay');
+    const textElement = document.getElementById('critical-alert-text');
+    if (overlay && textElement) {
+        textElement.innerText = text;
+        overlay.classList.add('active');
+        
+        if (criticalAlertTimeout) clearTimeout(criticalAlertTimeout);
+        criticalAlertTimeout = setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 3000);
+    }
+};
+
+window.toggleFullScreen = function() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error(`Error al intentar pantalla completa: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+};
 
 function initDashboardModule() {
     loadDashboardData();
@@ -12,6 +40,17 @@ function initDashboardModule() {
         const tt = document.createElement('div');
         tt.id = 'hex-tooltip';
         document.body.appendChild(tt);
+    }
+
+    // Inject critical alert overlay if not exists
+    if (!document.getElementById('critical-alert-overlay')) {
+        const alertOverlay = document.createElement('div');
+        alertOverlay.id = 'critical-alert-overlay';
+        alertOverlay.innerHTML = `
+            <i class="bi bi-exclamation-octagon-fill"></i>
+            <h1 id="critical-alert-text">CAÍDO: NODO</h1>
+        `;
+        document.body.appendChild(alertOverlay);
     }
 }
 
@@ -44,20 +83,43 @@ function loadDashboardData() {
                 return a.nombre.localeCompare(b.nombre);
             });
             
+            let newlyOfflineNodes = [];
+
             nodos.forEach(n => {
                 let cardClass = 'online';
-                let iconClass = 'bi-hdd-network';
                 let stateText = 'Online';
+                let iconClass = 'bi-hdd-network';
+                
+                if (n.tipo === 'mikrotik') {
+                    iconClass = 'bi-router';
+                } else if (n.tipo === 'equipo') {
+                    let com = (n.comunidad_snmp || '').toLowerCase();
+                    if (com.includes('antena') || com.includes('ptp') || com.includes('torre') || com.includes('ap')) {
+                        iconClass = 'bi-broadcast';
+                    } else if (com.includes('cliente') || com.includes('usuario')) {
+                        iconClass = 'bi-person-circle';
+                    }
+                }
                 
                 if (n.estado_noc === 'offline') {
                     cardClass = 'offline';
-                    iconClass = 'bi-x-octagon';
                     stateText = 'Offline';
                 } else if (n.estado_noc === 'alerta') {
                     cardClass = 'alerta';
-                    iconClass = 'bi-exclamation-triangle';
                     stateText = 'Alerta';
                 }
+                
+                // Track state changes to apply cool animations
+                let prev = previousNodeStates[n.id];
+                if (prev) {
+                    if (prev !== 'offline' && n.estado_noc === 'offline') {
+                        cardClass += ' just-offline-anim';
+                        newlyOfflineNodes.push(n.nombre);
+                    } else if (prev === 'offline' && n.estado_noc === 'online') {
+                        cardClass += ' just-online-anim';
+                    }
+                }
+                previousNodeStates[n.id] = n.estado_noc;
                 
                 const ping = n.ultimo_ping !== null ? n.ultimo_ping + ' ms' : '--';
                 
@@ -94,6 +156,14 @@ function loadDashboardData() {
                 `;
             });
             
+            if (newlyOfflineNodes.length > 0) {
+                if (newlyOfflineNodes.length === 1) {
+                    showCriticalAlert(`CAÍDO: ${newlyOfflineNodes[0]}`);
+                } else {
+                    showCriticalAlert(`CAÍDOS: ${newlyOfflineNodes.join(', ')}`);
+                }
+            }
+
             document.getElementById('dashboard-last-update').innerText = 'Actualizado: ' + new Date().toLocaleTimeString();
         }
     }).catch(e => console.error("Error al cargar NOC:", e));

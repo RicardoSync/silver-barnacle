@@ -127,8 +127,8 @@ a[aria-expanded="true"] {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0px;
-    padding: 20px;
+    gap: 12px;
+    padding: 30px 20px;
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -136,9 +136,7 @@ a[aria-expanded="true"] {
 .noc-hexagon {
     width: 110px;
     height: 127px;
-    /* width * 1.154 for proper hexagon ratio */
-    background-color: #198754;
-    /* Default Online */
+    background: linear-gradient(135deg, #20c997, #0f8f69);
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     display: flex;
     flex-direction: column;
@@ -147,74 +145,106 @@ a[aria-expanded="true"] {
     text-align: center;
     color: #fff;
     cursor: pointer;
-    transition: transform 0.2s ease, filter 0.2s ease;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    /* Add inner shadow effect via background tricks or drop-shadow on wrapper, here we use filter */
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
+}
+
+.noc-hexagon::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at top left, rgba(255,255,255,0.3), transparent 70%);
+    pointer-events: none;
 }
 
 .noc-hexagon:hover {
-    transform: scale(1.15);
+    transform: scale(1.15) translateY(-5px);
     z-index: 10;
-    filter: brightness(1.2);
+    filter: drop-shadow(0 15px 20px rgba(0,0,0,0.3));
 }
 
 .noc-hexagon.offline {
-    background-color: #dc3545;
-    animation: blinkerRedHex 1.5s infinite;
+    background: linear-gradient(135deg, #ff4d4f, #c0392b);
+    animation: pulseOffline 2s infinite;
 }
 
 .noc-hexagon.alerta {
-    background-color: #ffc107;
-    color: #212529;
-    /* Dark text for yellow background */
+    background: linear-gradient(135deg, #f1c40f, #d35400);
+    color: #fff;
 }
 
 .noc-hexagon .hex-icon {
-    font-size: 36px;
-    margin-bottom: 2px;
+    font-size: 38px;
+    margin-bottom: 4px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .noc-hexagon .hex-title {
     font-size: 13px;
-    font-weight: bold;
+    font-weight: 600;
     max-width: 100px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 4px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Blinking Red Animation */
-@keyframes blinkerRedHex {
-    0% {
-        background-color: #dc3545;
-    }
-
-    50% {
-        background-color: #f8d7da;
-        color: #dc3545;
-    }
-
-    100% {
-        background-color: #dc3545;
-    }
+/* Modern pulsing offline */
+@keyframes pulseOffline {
+    0% { filter: drop-shadow(0 0 5px rgba(255,77,79,0.5)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 20px rgba(255,77,79,0.9)); transform: scale(1.05); }
+    100% { filter: drop-shadow(0 0 5px rgba(255,77,79,0.5)); transform: scale(1); }
 }
 
-/* Custom Hover Tooltip */
+/* Animation when it falls offline (Glitch + Shake + Flash) */
+.just-offline-anim {
+    animation: offlineGlitch 1s cubic-bezier(.36,.07,.19,.97) both !important;
+}
+
+@keyframes offlineGlitch {
+    0% { transform: scale(1); filter: brightness(1); }
+    10% { transform: scale(1.2) translate(4px, -4px) rotate(-5deg); filter: brightness(2) drop-shadow(0 0 30px #ff0000); background: #ff0000; }
+    20% { transform: scale(0.9) translate(-4px, 4px) rotate(5deg); }
+    30% { transform: scale(1.1) translate(4px, 0px) rotate(-3deg); filter: brightness(1.5) drop-shadow(0 0 20px #ff0000); }
+    40% { transform: scale(0.95) translate(-2px, -2px) rotate(2deg); }
+    50% { transform: scale(1.05) translate(2px, 2px) rotate(-1deg); }
+    100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255,77,79,0.5)); }
+}
+
+/* Animation when it revives (Surge + Bright Green Glow) */
+.just-online-anim {
+    animation: onlineSurge 1s cubic-bezier(0.2, 0.8, 0.2, 1) both !important;
+}
+
+@keyframes onlineSurge {
+    0% { transform: scale(0.5); filter: drop-shadow(0 0 0 rgba(0,255,0,0)); background: #fff; }
+    40% { transform: scale(1.3); filter: drop-shadow(0 0 40px #00ff00) brightness(1.5); }
+    70% { transform: scale(0.95); filter: drop-shadow(0 0 20px #00ff00); }
+    100% { transform: scale(1); filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15)); }
+}
+
+/* Custom Hover Tooltip - Glassmorphism */
 #hex-tooltip {
     position: absolute;
-    background: rgba(33, 37, 41, 0.95);
-    color: #fff;
-    padding: 12px 16px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #f8fafc;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     pointer-events: none;
     z-index: 9999;
     font-size: 13px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     display: none;
     transform: translate(-50%, -100%);
-    margin-top: -10px;
-    min-width: 220px;
+    margin-top: -15px;
+    min-width: 240px;
 }
 
 #hex-tooltip::after {
@@ -222,10 +252,72 @@ a[aria-expanded="true"] {
     position: absolute;
     top: 100%;
     left: 50%;
-    margin-left: -6px;
-    border-width: 6px;
+    margin-left: -8px;
+    border-width: 8px;
     border-style: solid;
-    border-color: rgba(33, 37, 41, 0.95) transparent transparent transparent;
+    border-color: rgba(15, 23, 42, 0.85) transparent transparent transparent;
+}
+
+/* Critical Alert Overlay */
+#critical-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(220, 53, 69, 0.95);
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    color: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#critical-alert-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+    animation: criticalPulse 1s infinite;
+}
+
+@keyframes criticalPulse {
+    0% { background: rgba(220, 53, 69, 0.95); }
+    50% { background: rgba(180, 20, 35, 0.95); }
+    100% { background: rgba(220, 53, 69, 0.95); }
+}
+
+#critical-alert-overlay h1 {
+    font-size: 5vw; /* Make it massive but responsive */
+    font-weight: 900;
+    text-transform: uppercase;
+    text-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+}
+
+#critical-alert-overlay i {
+    font-size: 8rem;
+    margin-bottom: 20px;
+    animation: shakeIcon 0.5s infinite;
+    text-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+@keyframes shakeIcon {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
 }
 
 /* DataTables */

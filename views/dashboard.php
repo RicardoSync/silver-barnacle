@@ -1,6 +1,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-speedometer2 text-secondary me-2"></i> Global NOC Dashboard</h2>
     <div>
+        <button class="btn btn-sm btn-outline-secondary me-2" onclick="toggleFullScreen()" title="Pantalla Completa"><i class="bi bi-arrows-fullscreen"></i></button>
         <span class="badge bg-secondary me-2" id="dashboard-last-update">Actualizando...</span>
     </div>
 </div>

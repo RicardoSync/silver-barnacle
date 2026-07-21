@@ -229,7 +229,7 @@ switch ($action) {
             
             // 1. Obtener Mikrotiks
             $stmtM = $con->prepare("
-                SELECT m.id, m.nombre, m.ip_address, 'mikrotik' as tipo,
+                SELECT m.id, m.nombre, m.ip_address, 'mikrotik' as tipo, NULL as comunidad_snmp,
                 (SELECT ms FROM historico_pings WHERE mikrotik_id = m.id AND tipo = 'servidor' ORDER BY fecha_registro DESC LIMIT 1) as ultimo_ping,
                 (SELECT cpu_uso FROM historico_recursos WHERE mikrotik_id = m.id ORDER BY fecha_registro DESC LIMIT 1) as cpu_uso,
                 (SELECT SUM(rx_bits + tx_bits) FROM historico_trafico WHERE mikrotik_id = m.id AND fecha_registro >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as trafico_total
@@ -240,7 +240,7 @@ switch ($action) {
 
             // 2. Obtener Equipos
             $stmtE = $con->prepare("
-                SELECT e.id, e.nombre, e.ip_address, 'equipo' as tipo,
+                SELECT e.id, e.nombre, e.ip_address, 'equipo' as tipo, e.comunidad_snmp,
                 (SELECT ms FROM historico_pings_equipos WHERE equipo_id = e.id ORDER BY fecha_registro DESC LIMIT 1) as ultimo_ping,
                 NULL as cpu_uso,
                 NULL as trafico_total
