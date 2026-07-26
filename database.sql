@@ -154,3 +154,29 @@ CREATE TABLE IF NOT EXISTS historial_caidas (
     INDEX idx_nodo_tipo (nodo_id, tipo_nodo),
     INDEX idx_estado (estado)
 ) ENGINE=InnoDB;
+
+-- 13. TABLA DE NODOS DE TOPOLOGÍA
+CREATE TABLE IF NOT EXISTS topologia_nodos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    tipo VARCHAR(50) DEFAULT 'ap',           -- router, ap, switch, cpe, servidor, pc, iot
+    pos_x INT DEFAULT 150,
+    pos_y INT DEFAULT 150,
+    equipo_ref_id INT NULL,                  -- ID opcional de referencia a tabla equipos o mikrotiks
+    tipo_ref ENUM('mikrotik', 'equipo', 'custom') DEFAULT 'custom',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 14. TABLA DE ENLACES DE TOPOLOGÍA
+CREATE TABLE IF NOT EXISTS topologia_enlaces (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nodo_origen_id INT NOT NULL,
+    nodo_destino_id INT NOT NULL,
+    tipo_enlace VARCHAR(50) DEFAULT 'inalambrico', -- inalambrico, ethernet, fibra
+    etiqueta VARCHAR(100) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (nodo_origen_id) REFERENCES topologia_nodos(id) ON DELETE CASCADE,
+    FOREIGN KEY (nodo_destino_id) REFERENCES topologia_nodos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

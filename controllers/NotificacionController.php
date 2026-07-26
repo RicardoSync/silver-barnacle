@@ -95,20 +95,32 @@ switch ($action) {
             $stmt1->execute([$last_alerta_id]);
             $nuevas_alertas = $stmt1->fetchAll(PDO::FETCH_ASSOC);
 
-            // Buscar nuevas caídas (en curso)
+            // Buscar caídas activas (en curso) con tiempo transcurrido en segundos
             $stmt2 = $con->prepare("
-                SELECT id, tipo_nodo, nombre_nodo, fecha_caida, estado 
+                SELECT id, nodo_id, tipo_nodo, nombre_nodo, fecha_caida, estado,
+                       TIMESTAMPDIFF(SECOND, fecha_caida, NOW()) as segundos_caida 
                 FROM historial_caidas 
-                WHERE id > ? AND estado = 'en_curso'
+                WHERE estado = 'en_curso'
                 ORDER BY id ASC
             ");
-            $stmt2->execute([$last_caida_id]);
+            $stmt2->execute();
             $nuevas_caidas = $stmt2->fetchAll(PDO::FETCH_ASSOC);
+
+            // Buscar recuperaciones recientes (caídas resueltas en los últimos 2 minutos)
+            $stmt3 = $con->prepare("
+                SELECT id, nodo_id, tipo_nodo, nombre_nodo, fecha_recuperacion, duracion_minutos
+                FROM historial_caidas 
+                WHERE estado = 'resuelta' AND fecha_recuperacion >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)
+                ORDER BY fecha_recuperacion DESC
+            ");
+            $stmt3->execute();
+            $recuperaciones = $stmt3->fetchAll(PDO::FETCH_ASSOC);
 
             echo json_encode([
                 'status' => 'success',
                 'alertas' => $nuevas_alertas,
-                'caidas' => $nuevas_caidas
+                'caidas' => $nuevas_caidas,
+                'recuperaciones' => $recuperaciones
             ]);
         } catch (Exception $e) {
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

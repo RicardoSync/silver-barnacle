@@ -32,7 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sidebarCollapseBtn) {
         sidebarCollapseBtn.addEventListener('click', function () {
             sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
+            if (window.innerWidth <= 768 && overlay) {
+                overlay.classList.toggle('active');
+            }
         });
     }
 
@@ -151,6 +153,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initNocModule === 'function') {
                 initNocModule();
             }
+        } else if (viewName === 'topologia') {
+            if (typeof initTopologiaModule === 'function') {
+                initTopologiaModule();
+            }
         } else {
             // Initialize Default DataTables for other views
             if ($.fn.DataTable.isDataTable('.datatable')) {
@@ -189,11 +195,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Engine de Alertas en Vivo (Toasts)
+    // Engine de Alertas en Vivo (Audios & Toasts)
     let lastAlertaId = 0;
     let lastCaidaId = 0;
     const alertAudio = new Audio('assets/audio/alert.mp3');
+    const recoveryAudio = new Audio('assets/audio/correct.mp3');
     
+    // Rastrear audios reproducidos para evitar repetirlos en cada polling de 15s
+    const soundPlayedForCaida = {};
+    const notifiedRecuperaciones = {};
+
     function initAlertPolling() {
         $.ajax({
             url: 'controllers/NotificacionController.php',
@@ -218,28 +229,51 @@ document.addEventListener('DOMContentLoaded', () => {
             dataType: 'json',
             success: function(res) {
                 if (res.status === 'success') {
-                    let hayNuevas = false;
+                    let playAlarmSound = false;
+                    let playRecoverySound = false;
                     
+                    // 1. Procesar caídas (Requisito 1: Alarma SOLO después de 1 minuto / 60 segundos)
                     if (res.caidas && res.caidas.length > 0) {
                         res.caidas.forEach(c => {
-                            if (c.id > lastCaidaId) lastCaidaId = c.id;
-                            mostrarToastAlerta(`CRÍTICO: Nodo ${c.nombre_nodo} CAÍDO.`, 'error');
-                            hayNuevas = true;
+                            let seg = parseInt(c.segundos_caida || 0);
+                            // Si lleva 60 segundos o más fuera de línea y no ha sonado para esta caída
+                            if (seg >= 60 && !soundPlayedForCaida[c.id]) {
+                                soundPlayedForCaida[c.id] = true;
+                                mostrarToastAlerta(`🚨 CRÍTICO: Nodo ${c.nombre_nodo} lleva +1 min CAÍDO.`, 'error');
+                                playAlarmSound = true;
+                            }
                         });
                     }
 
+                    // 2. Procesar recuperaciones (Requisito 2: Sonido de alerta al volver en línea)
+                    if (res.recuperaciones && res.recuperaciones.length > 0) {
+                        res.recuperaciones.forEach(r => {
+                            if (!notifiedRecuperaciones[r.id]) {
+                                notifiedRecuperaciones[r.id] = true;
+                                let dur = r.duracion_minutos > 0 ? ` (Estuvo fuera ${r.duracion_minutos} min)` : '';
+                                mostrarToastAlerta(`✅ RESTABLECIDO: Nodo ${r.nombre_nodo} volvió a estar EN LÍNEA${dur}.`, 'success');
+                                playRecoverySound = true;
+                            }
+                        });
+                    }
+
+                    // 3. Procesar otras alertas registradas
                     if (res.alertas && res.alertas.length > 0) {
                         res.alertas.forEach(a => {
-                            if (a.id > lastAlertaId) lastAlertaId = a.id;
-                            let icon = a.tipo === 'offline' ? 'error' : (a.tipo === 'latencia' || a.tipo === 'cpu' ? 'warning' : 'info');
-                            mostrarToastAlerta(`${a.router}: ${a.mensaje}`, icon);
-                            hayNuevas = true;
+                            if (a.id > lastAlertaId) {
+                                lastAlertaId = a.id;
+                                let icon = a.tipo === 'offline' ? 'error' : (a.tipo === 'latencia' || a.tipo === 'cpu' ? 'warning' : 'info');
+                                mostrarToastAlerta(`${a.router}: ${a.mensaje}`, icon);
+                            }
                         });
                     }
                     
-                    if (hayNuevas) {
-                        // Reproducir audio sin bloquear la UI
-                        alertAudio.play().catch(e => console.log('El navegador bloqueó el autoplay del audio.'));
+                    // Reproducir audios según corresponda
+                    if (playAlarmSound) {
+                        alertAudio.play().catch(e => console.log('Autoplay de alarma bloqueado por el navegador.'));
+                    }
+                    if (playRecoverySound) {
+                        recoveryAudio.play().catch(e => console.log('Autoplay de recuperación bloqueado por el navegador.'));
                     }
                 }
             }
@@ -247,6 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function mostrarToastAlerta(mensaje, icon) {
+        let bgColor = '#ffffff';
+        if (icon === 'error') bgColor = '#fdecea';
+        if (icon === 'success') bgColor = '#e8f5e9';
+        if (icon === 'warning') bgColor = '#fff8e1';
+
         Swal.fire({
             toast: true,
             position: 'top-end',
@@ -255,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showConfirmButton: false,
             timer: 8000,
             timerProgressBar: true,
-            background: icon === 'error' ? '#fdecea' : '#fff',
+            background: bgColor,
             didOpen: (toast) => {
                 toast.addEventListener('mouseenter', Swal.stopTimer)
                 toast.addEventListener('mouseleave', Swal.resumeTimer)
@@ -264,6 +303,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initAlertPolling();
+
+    // Event listener nativo de Pantalla Completa (Ocultar Sidebar en Fullscreen)
+    const handleFullscreenChange = () => {
+        const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+        if (isFS) {
+            document.body.classList.add('is-fullscreen');
+        } else {
+            document.body.classList.remove('is-fullscreen');
+        }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     // Cargar vista inicial
     loadView('dashboard');

@@ -122,75 +122,194 @@ a[aria-expanded="true"] {
     margin-bottom: 0;
 }
 
-/* NOC Dashboard Styles */
-.noc-grid-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px;
-    padding: 30px 20px;
-    max-width: 1400px;
-    margin: 0 auto;
+/* Fullscreen Mode - Hide Sidebar */
+body.is-fullscreen #sidebar {
+    display: none !important;
 }
 
-.noc-hexagon {
-    width: 110px;
-    height: 127px;
-    background: linear-gradient(135deg, #20c997, #0f8f69);
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+body.is-fullscreen .main-wrapper {
+    padding-left: 0 !important;
+}
+
+body.is-fullscreen .content-area {
+    width: 100vw !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    min-height: 100vh;
+}
+
+body.is-fullscreen #sidebarCollapse {
+    display: none !important;
+}
+
+/* WISP NOC Dashboard Styles */
+.kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+}
+
+.wisp-nodes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    padding-bottom: 2rem;
+}
+
+.wisp-node-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    padding: 1.15rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    /* Add inner shadow effect via background tricks or drop-shadow on wrapper, here we use filter */
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
+    justify-content: space-between;
 }
 
-.noc-hexagon::after {
+.wisp-node-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.09);
+    border-color: #cbd5e1;
+}
+
+/* Variantes de estado */
+.wisp-node-card.online {
+    border-top: 4px solid #10b981;
+}
+
+.wisp-node-card.alerta {
+    border-top: 4px solid #f59e0b;
+    background: #fffdf5;
+}
+
+.wisp-node-card.offline {
+    border-top: 4px solid #ef4444;
+    background: #fef2f2;
+    animation: cardPulseOffline 2.5s infinite ease-in-out;
+}
+
+@keyframes cardPulseOffline {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Indicadores LED pulsantes */
+.wisp-led {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.led-online {
+    background-color: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+.led-online::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at top left, rgba(255,255,255,0.3), transparent 70%);
-    pointer-events: none;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background-color: #10b981;
+    animation: ledPulse 1.8s infinite;
 }
 
-.noc-hexagon:hover {
-    transform: scale(1.15) translateY(-5px);
-    z-index: 10;
-    filter: drop-shadow(0 15px 20px rgba(0,0,0,0.3));
+.led-alerta {
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
 }
 
-.noc-hexagon.offline {
-    background: linear-gradient(135deg, #ff4d4f, #c0392b);
-    animation: pulseOffline 2s infinite;
+.led-offline {
+    background-color: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+}
+.led-offline::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background-color: #ef4444;
+    animation: ledPulse 1s infinite;
 }
 
-.noc-hexagon.alerta {
-    background: linear-gradient(135deg, #f1c40f, #d35400);
-    color: #fff;
+@keyframes ledPulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(2.5); opacity: 0; }
 }
 
-.noc-hexagon .hex-icon {
-    font-size: 38px;
-    margin-bottom: 4px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+/* Cabecera y cuerpo de tarjetas WISP */
+.wisp-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
 }
 
-.noc-hexagon .hex-title {
-    font-size: 13px;
+.wisp-icon {
+    font-size: 1.35rem;
+    color: #475569;
+}
+
+.wisp-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1e293b;
+    max-width: 140px;
+}
+
+.wisp-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.85rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.wisp-action-link {
+    font-size: 11px;
     font-weight: 600;
-    max-width: 100px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 0 4px;
-    letter-spacing: 0.5px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    color: #3b82f6;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.wisp-node-card:hover .wisp-action-link {
+    color: #1d4ed8;
+}
+
+/* Botones con forma de píldora */
+.btn-pill {
+    border: none;
+    border-radius: 20px !important;
+    padding: 0.35rem 0.85rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    background: transparent;
+}
+.btn-pill:hover {
+    color: #0f172a;
+    background-color: #e2e8f0;
+}
+.btn-pill.active {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
 }
 
 /* Modern pulsing offline */
@@ -345,12 +464,12 @@ a[aria-expanded="true"] {
     transition: all 0.5s ease-in-out;
 }
 
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
-}
-
 @media (max-width: 768px) {
+    .sidebar-overlay.active {
+        display: block;
+        opacity: 1;
+    }
+
     #sidebar {
         margin-left: -250px;
         position: fixed;
@@ -362,3 +481,171 @@ a[aria-expanded="true"] {
         margin-left: 0;
     }
 }
+
+/* ==========================================================================
+   ESTILOS DE TOPOLOGÍA DE RED (VISTA SIMPLIFICADA Y LIMPIA)
+   ========================================================================== */
+#topology-workspace {
+    width: 100%;
+    height: 650px;
+    background-color: #f8fafc;
+    background-image: 
+        linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+        linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+    background-size: 25px 25px;
+    border-radius: 6px;
+    overflow: hidden;
+    user-select: none;
+    cursor: grab;
+}
+
+.topology-node-card {
+    position: absolute;
+    width: 175px;
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    cursor: grab;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.topology-node-card:active {
+    cursor: grabbing;
+}
+
+.topology-node-card.online {
+    border-left: 4px solid #198754;
+}
+
+.topology-node-card.offline {
+    border-left: 4px solid #dc3545;
+}
+
+.topology-node-card.selected-source {
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
+}
+
+.node-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.node-icon {
+    font-size: 1.2rem;
+    color: #475569;
+}
+
+.topology-node-card.online .node-icon {
+    color: #198754;
+}
+
+.topology-node-card.offline .node-icon {
+    color: #dc3545;
+}
+
+.node-status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #6c757d;
+}
+
+.topology-node-card.online .node-status-indicator {
+    background-color: #198754;
+}
+
+.topology-node-card.offline .node-status-indicator {
+    background-color: #dc3545;
+}
+
+.node-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.node-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.node-ip {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-family: monospace;
+}
+
+.node-ping-info {
+    margin-top: 4px;
+}
+
+.node-actions-menu {
+    position: absolute;
+    top: -12px;
+    right: 6px;
+    display: none;
+    gap: 2px;
+    background: #ffffff;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.topology-node-card:hover .node-actions-menu {
+    display: flex;
+}
+
+.btn-xs {
+    padding: 1px 4px;
+    font-size: 10px;
+    line-height: 1.2;
+    border-radius: 3px;
+}
+
+/* Animación limpia de líneas SVG */
+@keyframes dash-flow {
+    from {
+        stroke-dashoffset: 24;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.topology-line-active {
+    animation: dash-flow 1.5s linear infinite;
+}
+
+.topology-link-group {
+    cursor: pointer;
+}
+
+/* Pantalla Completa para Topología */
+#topology-workspace-wrapper.is-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+}
+
+#topology-workspace-wrapper.is-fullscreen #topology-workspace {
+    height: 100vh !important;
+    border-radius: 0 !important;
+}
+
+

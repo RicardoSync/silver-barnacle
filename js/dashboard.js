@@ -1,6 +1,9 @@
 let dashboardInterval;
-let previousNodeStates = {}; // Track state for animations
+let previousNodeStates = {};
 let criticalAlertTimeout;
+let currentDashboardFilter = 'all';
+let currentDashboardSearch = '';
+let lastFetchedNodes = [];
 
 window.showCriticalAlert = function(text) {
     const overlay = document.getElementById('critical-alert-overlay');
@@ -17,13 +20,17 @@ window.showCriticalAlert = function(text) {
 };
 
 window.toggleFullScreen = function() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            console.error(`Error al intentar pantalla completa: ${err.message}`);
-        });
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+        }
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
         }
     }
 };
@@ -32,17 +39,10 @@ function initDashboardModule() {
     loadDashboardData();
     
     if(dashboardInterval) clearInterval(dashboardInterval);
-    // Auto refresh every 30 seconds
+    // Refresh cada 30 segundos
     dashboardInterval = setInterval(loadDashboardData, 30000);
 
-    // Inject tooltip if not exists
-    if (!document.getElementById('hex-tooltip')) {
-        const tt = document.createElement('div');
-        tt.id = 'hex-tooltip';
-        document.body.appendChild(tt);
-    }
-
-    // Inject critical alert overlay if not exists
+    // Overlay de alerta crítica si no existe
     if (!document.getElementById('critical-alert-overlay')) {
         const alertOverlay = document.createElement('div');
         alertOverlay.id = 'critical-alert-overlay';
@@ -52,6 +52,185 @@ function initDashboardModule() {
         `;
         document.body.appendChild(alertOverlay);
     }
+}
+
+window.initDashboardModule = initDashboardModule;
+window.loadDashboardData = loadDashboardData;
+
+window.setDashboardFilter = function(filter) {
+    currentDashboardFilter = filter;
+    
+    // Actualizar botones de filtro
+    const buttons = document.querySelectorAll('#wisp-filter-buttons button');
+    buttons.forEach(btn => {
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active', 'btn-primary', 'text-white');
+            btn.classList.remove('btn-outline-secondary');
+        } else {
+            btn.classList.remove('active', 'btn-primary', 'text-white');
+        }
+    });
+    
+    renderFilteredNodes();
+};
+
+window.onDashboardSearchChange = function(query) {
+    currentDashboardSearch = (query || '').toLowerCase().trim();
+    renderFilteredNodes();
+};
+
+function renderFilteredNodes() {
+    const grid = document.getElementById('noc-grid');
+    if (!grid) return;
+    
+    let filtered = lastFetchedNodes.filter(n => {
+        // Filtrado por categoría / estado
+        if (currentDashboardFilter === 'offline' && n.estado_noc !== 'offline') return false;
+        if (currentDashboardFilter === 'alerta' && n.estado_noc !== 'alerta') return false;
+        if (currentDashboardFilter === 'online' && n.estado_noc !== 'online') return false;
+        if (currentDashboardFilter === 'mikrotik' && n.tipo !== 'mikrotik') return false;
+        if (currentDashboardFilter === 'equipo' && n.tipo !== 'equipo') return false;
+        
+        // Filtrado por búsqueda de texto (nombre o IP)
+        if (currentDashboardSearch) {
+            const nom = (n.nombre || '').toLowerCase();
+            const ip = (n.ip_address || '').toLowerCase();
+            if (!nom.includes(currentDashboardSearch) && !ip.includes(currentDashboardSearch)) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-12 text-center text-muted py-5">
+                <i class="bi bi-search fs-1 text-muted opacity-50"></i>
+                <h5 class="mt-2 fw-bold">No se encontraron dispositivos</h5>
+                <p class="small mb-0">Intenta cambiar los filtros o el término de búsqueda.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = '';
+    
+    filtered.forEach(n => {
+        let cardStatusClass = 'online';
+        let statusBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2"><i class="bi bi-dot fs-6"></i> En Línea</span>';
+        let ledClass = 'led-online';
+        let iconClass = 'bi-router-fill';
+        let typeBadge = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2">MikroTik</span>';
+        
+        if (n.tipo === 'equipo') {
+            typeBadge = '<span class="badge bg-purple-subtle text-purple border border-purple-subtle rounded-pill px-2" style="color: #6f42c1; background-color: #f3ebf9; border-color: #d8b4fe !important;">Equipo / Antena</span>';
+            let com = (n.comunidad_snmp || '').toLowerCase();
+            if (com.includes('antena') || com.includes('ptp') || com.includes('torre') || com.includes('ap')) {
+                iconClass = 'bi-broadcast-pin';
+            } else if (com.includes('cliente') || com.includes('usuario')) {
+                iconClass = 'bi-person-badge';
+            } else {
+                iconClass = 'bi-hdd-network-fill';
+            }
+        }
+
+        if (n.estado_noc === 'offline') {
+            cardStatusClass = 'offline';
+            ledClass = 'led-offline';
+            statusBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Caído</span>';
+        } else if (n.estado_noc === 'alerta') {
+            cardStatusClass = 'alerta';
+            ledClass = 'led-alerta';
+            statusBadge = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2"><i class="bi bi-exclamation-circle-fill me-1"></i> Alerta</span>';
+        }
+
+        // Animación si acaba de cambiar de estado
+        let prev = previousNodeStates[n.id];
+        if (prev) {
+            if (prev !== 'offline' && n.estado_noc === 'offline') {
+                cardStatusClass += ' just-offline-anim';
+            } else if (prev === 'offline' && n.estado_noc === 'online') {
+                cardStatusClass += ' just-online-anim';
+            }
+        }
+
+        const pingMs = n.ultimo_ping !== null ? n.ultimo_ping : null;
+        let pingBadgeClass = 'bg-success';
+        let pingText = pingMs !== null ? `${pingMs} ms` : 'OFF';
+
+        if (pingMs === null || n.estado_noc === 'offline') {
+            pingBadgeClass = 'bg-danger';
+            pingText = 'OFF';
+        } else if (pingMs > 150) {
+            pingBadgeClass = 'bg-warning text-dark';
+        } else if (pingMs > 80) {
+            pingBadgeClass = 'bg-info text-dark';
+        }
+
+        let cpuValue = n.cpu_uso !== null ? parseInt(n.cpu_uso) : 0;
+        let cpuBarColor = cpuValue > 80 ? 'bg-danger' : (cpuValue > 50 ? 'bg-warning' : 'bg-success');
+        let cpuHtml = n.tipo === 'mikrotik' && n.estado_noc !== 'offline' ? `
+            <div class="mt-2">
+                <div class="d-flex justify-content-between align-items-center small text-muted mb-1" style="font-size: 11px;">
+                    <span>CPU:</span>
+                    <span class="fw-bold text-dark">${cpuValue}%</span>
+                </div>
+                <div class="progress" style="height: 5px;">
+                    <div class="progress-bar ${cpuBarColor}" role="progressbar" style="width: ${cpuValue}%"></div>
+                </div>
+            </div>
+        ` : '';
+
+        let trafficHtml = n.tipo === 'mikrotik' && n.estado_noc !== 'offline' ? `
+            <div class="d-flex justify-content-between align-items-center small text-muted mt-2" style="font-size: 11px;">
+                <span>Tráfico:</span>
+                <span class="fw-bold text-primary">${n.trafico_mbps} Mbps</span>
+            </div>
+        ` : '';
+
+        const clickAction = n.tipo === 'equipo' 
+            ? `loadView('equipos/detalles', {id: ${n.id}})`
+            : `loadView('mikrotik/detalles', {id: ${n.id}})`;
+
+        const safeName = (n.nombre || '').replace(/"/g, '&quot;');
+
+        grid.innerHTML += `
+            <div class="wisp-card-col">
+                <div class="wisp-node-card ${cardStatusClass}" onclick="${clickAction}">
+                    <div class="wisp-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="wisp-led ${ledClass}"></span>
+                            <i class="bi ${iconClass} wisp-icon"></i>
+                            <div class="wisp-card-title text-truncate" title="${safeName}">${safeName}</div>
+                        </div>
+                        <div>${typeBadge}</div>
+                    </div>
+                    
+                    <div class="wisp-card-body">
+                        <div class="d-flex justify-content-between align-items-center my-2">
+                            <span class="text-muted font-monospace small" style="font-size: 12px;">
+                                <i class="bi bi-hdd-network me-1"></i>${n.ip_address}
+                            </span>
+                            <span class="badge ${pingBadgeClass} font-monospace shadow-sm" style="font-size: 11px;">
+                                ${pingText}
+                            </span>
+                        </div>
+
+                        ${cpuHtml}
+                        ${trafficHtml}
+                    </div>
+
+                    <div class="wisp-card-footer">
+                        <div>${statusBadge}</div>
+                        <div class="wisp-action-link">
+                            Detalles <i class="bi bi-arrow-right-short"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
 }
 
 function loadDashboardData() {
@@ -67,9 +246,6 @@ function loadDashboardData() {
             document.getElementById('kpi-offline').innerText = kpis.offline;
             document.getElementById('kpi-alertas').innerText = kpis.alertas;
             
-            const grid = document.getElementById('noc-grid');
-            grid.innerHTML = '';
-            
             // Ordenar nodos para que los caídos/alertados aparezcan primero
             nodos.sort((a, b) => {
                 let getPriority = (node) => {
@@ -82,80 +258,19 @@ function loadDashboardData() {
                 if (pA !== pB) return pB - pA;
                 return a.nombre.localeCompare(b.nombre);
             });
-            
-            let newlyOfflineNodes = [];
 
+            let newlyOfflineNodes = [];
             nodos.forEach(n => {
-                let cardClass = 'online';
-                let stateText = 'Online';
-                let iconClass = 'bi-hdd-network';
-                
-                if (n.tipo === 'mikrotik') {
-                    iconClass = 'bi-router';
-                } else if (n.tipo === 'equipo') {
-                    let com = (n.comunidad_snmp || '').toLowerCase();
-                    if (com.includes('antena') || com.includes('ptp') || com.includes('torre') || com.includes('ap')) {
-                        iconClass = 'bi-broadcast';
-                    } else if (com.includes('cliente') || com.includes('usuario')) {
-                        iconClass = 'bi-person-circle';
-                    }
-                }
-                
-                if (n.estado_noc === 'offline') {
-                    cardClass = 'offline';
-                    stateText = 'Offline';
-                } else if (n.estado_noc === 'alerta') {
-                    cardClass = 'alerta';
-                    stateText = 'Alerta';
-                }
-                
-                // Track state changes to apply cool animations
                 let prev = previousNodeStates[n.id];
-                if (prev) {
-                    if (prev !== 'offline' && n.estado_noc === 'offline') {
-                        cardClass += ' just-offline-anim';
-                        newlyOfflineNodes.push(n.nombre);
-                    } else if (prev === 'offline' && n.estado_noc === 'online') {
-                        cardClass += ' just-online-anim';
-                    }
+                if (prev && prev !== 'offline' && n.estado_noc === 'offline') {
+                    newlyOfflineNodes.push(n.nombre);
                 }
                 previousNodeStates[n.id] = n.estado_noc;
-                
-                const ping = n.ultimo_ping !== null ? n.ultimo_ping + ' ms' : '--';
-                
-                let cpuStr = 'N/A';
-                if (n.tipo !== 'equipo') {
-                    let cpuVal = n.cpu_uso !== null ? parseInt(n.cpu_uso) : 0;
-                    cpuStr = n.cpu_uso !== null ? cpuVal + '%' : 'N/A';
-                    if (cardClass === 'offline') cpuStr = 'OFF';
-                }
-
-                const clickAction = n.tipo === 'equipo' 
-                    ? `loadView('equipos/detalles', {id: ${n.id}})`
-                    : `loadView('mikrotik/detalles', {id: ${n.id}})`;
-
-                const trafficDisplay = n.tipo === 'equipo' ? 'N/A' : `${n.trafico_mbps} Mbps`;
-                const safeName = n.nombre.replace(/"/g, '&quot;');
-                
-                grid.innerHTML += `
-                    <div class="noc-hexagon ${cardClass}" 
-                         onclick="${clickAction}"
-                         data-nombre="${safeName}"
-                         data-ip="${n.ip_address}"
-                         data-ping="${ping}"
-                         data-cpu="${cpuStr}"
-                         data-trafico="${trafficDisplay}"
-                         data-estado="${stateText}"
-                         data-tipo="${n.tipo}"
-                         data-history="${JSON.stringify(n.ping_history)}"
-                         onmouseenter="showHexTooltip(event, this)"
-                         onmouseleave="hideHexTooltip()">
-                        <i class="bi ${iconClass} hex-icon"></i>
-                        <div class="hex-title" title="${safeName}">${safeName}</div>
-                    </div>
-                `;
             });
-            
+
+            lastFetchedNodes = nodos;
+            renderFilteredNodes();
+
             if (newlyOfflineNodes.length > 0) {
                 if (newlyOfflineNodes.length === 1) {
                     showCriticalAlert(`CAÍDO: ${newlyOfflineNodes[0]}`);
@@ -164,7 +279,7 @@ function loadDashboardData() {
                 }
             }
 
-            document.getElementById('dashboard-last-update').innerText = 'Actualizado: ' + new Date().toLocaleTimeString();
+            document.getElementById('dashboard-last-update').innerHTML = '<i class="bi bi-check-circle text-success me-1"></i> Actualizado: ' + new Date().toLocaleTimeString();
         }
     }).catch(e => console.error("Error al cargar NOC:", e));
 }
