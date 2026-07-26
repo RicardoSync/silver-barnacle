@@ -1,4 +1,5 @@
 # Sistema de Monitoreo (Elissa)
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/bc10e8a1-b5b9-4e54-982f-604f2e46bce4" />
 
 Sistema de monitoreo para equipos e infraestructura de red, diseñado con integración para la API de MikroTik.
 
