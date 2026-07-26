@@ -1,85 +1,131 @@
-# Sistema de Monitoreo (Elissa)
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/bc10e8a1-b5b9-4e54-982f-604f2e46bce4" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/1ec7a23f-7ff6-4820-84a0-7f93f4200e73" />
 
-Sistema de monitoreo para equipos e infraestructura de red, diseñado con integración para la API de MikroTik.
+# 📊 Elissa - Sistema de Monitoreo
 
-## Requisitos Previos
+Elissa es un sistema de monitoreo fácil de instalar y configurar, diseñado para interactuar con la API de MikroTik y enviar notificaciones.
 
-Antes de comenzar con la instalación, asegúrate de tener instalado y configurado lo siguiente en tu servidor (entorno LAMP recomendado):
-- **Servidor Web**: Apache
-- **Base de Datos**: MySQL
-- **Lenguaje**: PHP y sus librerías correspondientes
-- **Red**: El puerto **8728** debe estar activo/abierto en tu red o firewall para permitir la comunicación con la API de MikroTik.
+## 📋 Requisitos Previos
 
-## Instalación
+Antes de comenzar, asegúrate de tener instalados los siguientes servicios en tu servidor web:
+* **Servidor Web:** Apache
+* **Base de datos:** MySQL
+* **Lenguaje:** PHP (incluyendo sus librerías estándar)
+* **Dependencias:** Composer
 
-Sigue estos pasos para desplegar el sistema de manera local o en tu servidor web:
+---
 
-### 1. Descargar el Proyecto
-Puedes descargar el código en un archivo `.zip` y extraerlo, o clonarlo directamente usando Git:
+## 🚀 Instalación paso a paso
+
+### 1. Descargar el proyecto
+Puedes clonar el repositorio usando Git (recomendado) o descargar el archivo `.zip`.
+
 ```bash
+# Clonar usando Git
 git clone https://github.com/RicardoSync/silver-barnacle.git
 ```
 
-### 2. Preparar el Directorio del Servidor Web
-Crea la carpeta para el sistema dentro del directorio público de Apache y mueve los archivos:
+### 2. Ubicar los archivos en el servidor web
+Crea la carpeta `elissa` en tu directorio web público y mueve los archivos:
 ```bash
 sudo mkdir -p /var/www/html/elissa
-
-# Mueve todo el contenido del proyecto descargado o clonado a la nueva ruta.
-# Ejemplo si usaste git clone:
-sudo cp -r silver-barnacle/* /var/www/html/elissa/
+# Mueve todo el contenido del proyecto a la carpeta recién creada
+sudo mv silver-barnacle/* /var/www/html/elissa/
 ```
 
-### 3. Instalar Dependencias (Composer)
-Es necesario instalar Composer en el servidor y cargar las dependencias de PHP requeridas por el proyecto:
+### 3. Instalar dependencias (Composer)
+Dirígete a la carpeta del proyecto e instala las dependencias de PHP.
+
 ```bash
-# Instalar Composer en el sistema
+# Instalar composer en caso de no tenerlo
+sudo apt update
 sudo apt install composer -y
 
-# Ingresar a la carpeta del proyecto
+# Entrar al directorio
 cd /var/www/html/elissa
 
-# Limpiar caché o instalaciones previas
+# Limpiar instalaciones previas
 rm -rf vendor/ composer.lock
 
-# Instalar y actualizar dependencias
+# Instalar dependencias
 composer update
 ```
 
-### 4. Configurar la Base de Datos MySQL
-Entra a la consola de base de datos con privilegios de superusuario para importar las tablas y crear el acceso:
+### 4. Configurar la Base de Datos (MySQL)
+Importa el archivo `database.sql` que viene incluido en el proyecto y configura los accesos.
+
+Primero, importa la base de datos (asegúrate de estar en `/var/www/html/elissa`):
+```bash
+sudo mysql < database.sql
+```
+
+Luego, ingresa a la consola de MySQL para crear el usuario y darle permisos:
 ```bash
 sudo mysql
 ```
-Una vez dentro de la consola de MySQL (`mysql>`), ejecuta los siguientes comandos exactos:
 
+Dentro de la consola de MySQL, ejecuta los siguientes comandos:
 ```sql
--- Importar la estructura y datos iniciales
-SOURCE /var/www/html/elissa/database.sql;
-
--- Crear el usuario del sistema con su respectiva contraseña
+-- Crear el usuario elissa con su contraseña
 CREATE USER 'elissa'@'localhost' IDENTIFIED BY 'zerocuatro04';
 
--- Otorgar todos los permisos al usuario creado
-GRANT ALL PRIVILEGES ON *.* TO 'elissa'@'localhost';
+-- Otorgar todos los permisos (Ajusta 'elissa_db' al nombre real de la BD importada si varía, o usa *.* globalmente para todo)
+GRANT ALL PRIVILEGES ON *.* TO 'elissa'@'localhost' WITH GRANT OPTION;
 
--- Refrescar los privilegios para aplicar los cambios
+-- Guardar los cambios y salir
 FLUSH PRIVILEGES;
-
--- Salir de la consola de MySQL
 EXIT;
 ```
 
-### 5. Acceso al Sistema
-Una vez completados los pasos anteriores, la instalación habrá finalizado. Puedes ingresar al sistema desde cualquier navegador web utilizando cualquiera de las siguientes rutas:
-- `http://<ip_del_servidor>/elissa`
-- `http://<tu_dominio.com>/elissa`
-- `http://localhost/elissa` (si estás de manera local)
+### 5. Requisitos de Red
+⚠️ **Importante:** Para que el sistema se comunique correctamente, el **puerto 8728 (API de MikroTik)** debe estar activo y accesible en tu red.
+
+### 6. Acceso al Sistema
+Una vez finalizada la instalación, el sistema estará listo. Puedes entrar desde tu navegador a través de cualquiera de estas rutas:
+* `http://<tu_ip>/elissa`
+* `http://<tu_dominio.com>/elissa`
+* `http://<ip_local>/elissa`
+
+---
+
+## 📱 Integración con WhatsApp (WAHA)
+
+Para el sistema de alertas por WhatsApp, es necesario montar un contenedor Docker con la API de WAHA.
+
+### 1. Desplegar el contenedor de Waha
+Ejecuta el siguiente comando para levantar el servicio:
+
+```bash
+docker run -d --restart=always \
+  -p 1008:3000 \
+  --name wa-conect_ti \
+  -v waha_sessions_conecti:/app/.sessions \
+  -e WAHA_API_KEY=1b21acf9ed92445197806ad03bbc97f1 \
+  -e WAHA_DASHBOARD_USERNAME=admin \
+  -e WAHA_DASHBOARD_PASSWORD=8e66ebe4abb940e0823547323204128e \
+  devlikeapro/waha:gows
+```
+
+### 2. Configurar la Sesión
+1. Ingresa a la interfaz administrativa en tu navegador utilizando tu IP local: `http://<tu_ip_local>:3050` *(o el puerto configurado)*.
+2. Inicia sesión con las siguientes credenciales:
+   * **Usuario:** `admin`
+   * **Contraseña:** `8e66ebe4abb940e0823547323204128e`
+3. En el apartado de **API**, coloca el siguiente token de validación: `1b21acf9ed92445197806ad03bbc97f1`
+4. Crea una sesión de manera **obligatoria** y asígnale el nombre: **`default`**.
+5. Escanea el código QR con la aplicación de WhatsApp de tu teléfono para vincular la cuenta.
+
+### 3. Configuración final en Elissa
+Ingresa a tu sistema **Elissa** y ve a la configuración de WhatsApp para llenar los campos correspondientes. 
+
+📹 **Guía visual:** Si tienes dudas de cómo llenar estos campos en Elissa, por favor sigue los pasos de este video tutorial:
+[Ver Video de Configuración en YouTube](https://youtu.be/aM-BHu-9pak?si=v4Bt53oFyfsSYIF2)
 
 
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191549" src="https://github.com/user-attachments/assets/1414201e-1733-4f66-933a-0fdff09b1a42" />
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191452" src="https://github.com/user-attachments/assets/7ef19527-08d0-4d58-a13c-3a406de01fcf" />
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/9d30a3ec-2396-4a77-ae53-47e1f2f0545f" />
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175217" src="https://github.com/user-attachments/assets/0ceb6e0f-8bbd-4ec8-8f67-f546ae08e236" />
-<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175143" src="https://github.com/user-attachments/assets/b8ef83d1-056a-4a4a-9ec6-f8dd5e13a122" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191610" src="https://github.com/user-attachments/assets/dcc82921-f9de-4d51-9ca9-5eba043b5572" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191549" src="https://github.com/user-attachments/assets/2a452722-d155-43e3-b670-00a0e0c87dfd" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191452" src="https://github.com/user-attachments/assets/4e73af27-542f-4aa3-aa94-c758dbb28c33" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/612ecaa7-0e17-4ad6-9299-7628168a4280" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175217" src="https://github.com/user-attachments/assets/3ff7371d-aada-4aef-9380-8589e63b5833" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175143" src="https://github.com/user-attachments/assets/cee9ec8a-4f88-42eb-8b64-20555459a423" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175131" src="https://github.com/user-attachments/assets/0c3294ba-f8b8-47f8-9e0d-789ada0c548b" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175100" src="https://github.com/user-attachments/assets/af565855-35a0-4182-b0d2-bf1447676843" />
