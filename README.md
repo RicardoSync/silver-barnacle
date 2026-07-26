@@ -76,3 +76,10 @@ Una vez completados los pasos anteriores, la instalación habrá finalizado. Pue
 - `http://<ip_del_servidor>/elissa`
 - `http://<tu_dominio.com>/elissa`
 - `http://localhost/elissa` (si estás de manera local)
+
+
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191549" src="https://github.com/user-attachments/assets/1414201e-1733-4f66-933a-0fdff09b1a42" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191452" src="https://github.com/user-attachments/assets/7ef19527-08d0-4d58-a13c-3a406de01fcf" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/9d30a3ec-2396-4a77-ae53-47e1f2f0545f" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175217" src="https://github.com/user-attachments/assets/0ceb6e0f-8bbd-4ec8-8f67-f546ae08e236" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175143" src="https://github.com/user-attachments/assets/b8ef83d1-056a-4a4a-9ec6-f8dd5e13a122" />
