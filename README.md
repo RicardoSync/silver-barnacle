@@ -1,4 +1,5 @@
 # 📊 Elissa - Sistema de Monitoreo
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/e4c25704-78f0-406f-ae06-5b8d7a5d856e" />
 
 Elissa es un sistema de monitoreo fácil de instalar y configurar, diseñado para interactuar con la API de MikroTik y enviar notificaciones.
 
@@ -117,3 +118,11 @@ Ingresa a tu sistema **Elissa** y ve a la configuración de WhatsApp para llenar
 
 📹 **Guía visual:** Si tienes dudas de cómo llenar estos campos en Elissa, por favor sigue los pasos de este video tutorial:
 [Ver Video de Configuración en YouTube](https://youtu.be/aM-BHu-9pak?si=v4Bt53oFyfsSYIF2)
+
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191610" src="https://github.com/user-attachments/assets/ee1de9f4-05c2-4355-82f7-029037e9c27f" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191549" src="https://github.com/user-attachments/assets/4941320f-1199-4592-88f9-81993bc7cf30" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191452" src="https://github.com/user-attachments/assets/0aee3a1b-4458-4a9b-8de2-659c307da100" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 191415" src="https://github.com/user-attachments/assets/ec5fe5cc-9f6d-4bd3-8cb0-a3f98ab63b4d" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175217" src="https://github.com/user-attachments/assets/afb7c6a1-2c7f-4532-b459-48b416847a49" />
+<img width="1920" height="1032" alt="Captura de pantalla 2026-07-25 175143" src="https://github.com/user-attachments/assets/80dcb45f-5006-425a-8b95-09ab06ce4bb8" />
+
