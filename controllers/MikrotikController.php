@@ -394,6 +394,10 @@ switch ($action) {
             $pingAltoCount = 0;
             $hardwareAltoCount = 0;
 
+            $stmtCheckCaida = $con->prepare("SELECT id FROM historial_caidas WHERE nodo_id = ? AND tipo_nodo = ? AND estado = 'en_curso'");
+            $stmtInsertCaida = $con->prepare("INSERT INTO historial_caidas (nodo_id, tipo_nodo, nombre_nodo, estado, fecha_caida) VALUES (?, ?, ?, 'en_curso', NOW())");
+            $stmtResolverCaida = $con->prepare("UPDATE historial_caidas SET fecha_recuperacion = NOW(), duracion_minutos = TIMESTAMPDIFF(MINUTE, fecha_caida, NOW()), estado = 'resuelta' WHERE id = ?");
+
             foreach ($nodos as &$n) {
                 // Hacer un ping real de 1 paquete con 1 segundo de timeout
                 $ip = escapeshellarg($n['ip_address']);
@@ -451,11 +455,24 @@ switch ($action) {
                 if ($ping == -1 || $ping == 0) {
                     $estado = 'offline';
                     $offline++;
+
+                    // Registrar caída en curso en historial_caidas si no existe aún
+                    $stmtCheckCaida->execute([$n['id'], $n['tipo']]);
+                    if (!$stmtCheckCaida->fetch()) {
+                        $stmtInsertCaida->execute([$n['id'], $n['tipo'], $n['nombre']]);
+                    }
                 } else {
                     $online++;
                     if ($alertaPing || $alertaCpu || $alertaRam) {
                         $estado = 'alerta';
                         $alertas++;
+                    }
+
+                    // Si estaba en caída en curso, marcarla como resuelta
+                    $stmtCheckCaida->execute([$n['id'], $n['tipo']]);
+                    $caidaActiva = $stmtCheckCaida->fetch(PDO::FETCH_ASSOC);
+                    if ($caidaActiva) {
+                        $stmtResolverCaida->execute([$caidaActiva['id']]);
                     }
                 }
                 $n['estado_noc'] = $estado;

@@ -29,6 +29,20 @@ if (!isset($_SESSION['user_id'])) {
     </div>
    
     <div id="overlay" class="sidebar-overlay"></div>
+
+    <!-- Overlay de Alerta Crítica (Pantalla Roja) -->
+    <div id="critical-alert-overlay">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <h1 id="critical-alert-title">¡ALERTA CRÍTICA DE RED!</h1>
+        <p id="critical-alert-msg" class="fs-5 text-center px-3 mb-3 text-white-50">Equipos que han superado más de 1 minuto sin responder:</p>
+        <div id="critical-alert-box" style="max-height: 40vh; width: 90%; max-width: 650px; overflow-y: auto; background: rgba(0, 0, 0, 0.35); border-radius: 12px; padding: 12px;" class="mb-4 shadow border border-white-50">
+            <div id="critical-alert-list"></div>
+        </div>
+        <button type="button" class="btn btn-light btn-lg fw-bold shadow text-danger px-4 py-2" onclick="silenciarAlertaVisual()">
+            <i class="bi bi-bell-slash me-2"></i> Silenciar / Entendido
+        </button>
+    </div>
+
     <div class="main-wrapper">
         
         <!-- Sidebar -->

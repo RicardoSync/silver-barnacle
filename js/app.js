@@ -210,15 +210,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Engine de Alertas en Vivo (Audios & Toasts)
+    // Engine de Alertas en Vivo (Audios, Pantalla Roja & Toasts)
     let lastAlertaId = 0;
     let lastCaidaId = 0;
     const alertAudio = new Audio('assets/audio/alert.mp3');
     const recoveryAudio = new Audio('assets/audio/correct.mp3');
     
-    // Rastrear audios reproducidos para evitar repetirlos en cada polling de 15s
+    // Rastrear audios y alertas silenciadas por caída
     const soundPlayedForCaida = {};
     const notifiedRecuperaciones = {};
+    const visualAlertDismissedFor = {};
+    window.lastCaidasMasDeUnMinuto = [];
 
     function initAlertPolling() {
         $.ajax({
@@ -247,20 +249,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     let playAlarmSound = false;
                     let playRecoverySound = false;
                     
-                    // 1. Procesar caídas (Requisito 1: Alarma SOLO después de 1 minuto / 60 segundos)
+                    // 1. Filtrar caídas que llevan MÁS DE 1 MINUTO (>= 60 segundos) sin responder
+                    let caidasCriticas = [];
                     if (res.caidas && res.caidas.length > 0) {
-                        res.caidas.forEach(c => {
-                            let seg = parseInt(c.segundos_caida || 0);
-                            // Si lleva 60 segundos o más fuera de línea y no ha sonado para esta caída
-                            if (seg >= 60 && !soundPlayedForCaida[c.id]) {
+                        caidasCriticas = res.caidas.filter(c => parseInt(c.segundos_caida || 0) >= 60);
+                        
+                        // Sonido de alerta (Req 1): SOLO cuando lleva más de 1 minuto sin que el equipo responda
+                        caidasCriticas.forEach(c => {
+                            if (!soundPlayedForCaida[c.id]) {
                                 soundPlayedForCaida[c.id] = true;
                                 mostrarToastAlerta(`🚨 CRÍTICO: Nodo ${c.nombre_nodo} lleva +1 min CAÍDO.`, 'error');
                                 playAlarmSound = true;
                             }
                         });
+
+                        // Alerta Visual Roja (Req 2): SOLO cuando un nodo supere más de 1 minuto sin responder
+                        window.lastCaidasMasDeUnMinuto = caidasCriticas;
+                        mostrarAlertaVisual(caidasCriticas);
+                    } else {
+                        window.lastCaidasMasDeUnMinuto = [];
+                        ocultarAlertaVisual();
                     }
 
-                    // 2. Procesar recuperaciones (Requisito 2: Sonido de alerta al volver en línea)
+                    // 2. Procesar recuperaciones
                     if (res.recuperaciones && res.recuperaciones.length > 0) {
                         res.recuperaciones.forEach(r => {
                             if (!notifiedRecuperaciones[r.id]) {
@@ -272,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
-                    // 3. Procesar otras alertas registradas
+                    // 3. Procesar otras alertas registradas (logs, cpu, etc.)
                     if (res.alertas && res.alertas.length > 0) {
                         res.alertas.forEach(a => {
                             if (a.id > lastAlertaId) {
@@ -294,7 +305,74 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
+    function mostrarAlertaVisual(caidasCriticas) {
+        const overlay = document.getElementById('critical-alert-overlay');
+        if (!overlay) return;
+
+        // Deduplicar caídas estrictamente por el nombre del nodo
+        const caidasUnicasMap = {};
+        caidasCriticas.forEach(c => {
+            const key = (c.nombre_nodo || '').trim().toLowerCase();
+            if (!key) return;
+            if (!caidasUnicasMap[key] || parseInt(c.segundos_caida || 0) > parseInt(caidasUnicasMap[key].segundos_caida || 0)) {
+                caidasUnicasMap[key] = c;
+            }
+        });
+        const caidasUnicas = Object.values(caidasUnicasMap);
+
+        // Mostrar solo caídas de +1 min que no hayan sido silenciadas manualmente por el usuario
+        const pendientes = caidasUnicas.filter(c => !visualAlertDismissedFor[c.id]);
+
+        if (pendientes.length > 0) {
+            const listEl = document.getElementById('critical-alert-list');
+            if (listEl) {
+                const nodosText = pendientes.map(c => {
+                    let mins = Math.floor(parseInt(c.segundos_caida || 0) / 60);
+                    let segs = parseInt(c.segundos_caida || 0) % 60;
+                    let tiempoStr = mins > 0 ? `${mins}m ${segs}s` : `${segs}s`;
+                    return `
+                        <div class="d-flex justify-content-between align-items-center py-2 px-3 border-bottom border-white-50">
+                            <span class="fw-bold fs-5 text-white text-truncate me-3">
+                                <i class="bi bi-wifi-off me-2 text-warning"></i>${c.nombre_nodo}
+                            </span>
+                            <span class="badge bg-white text-danger fw-bold fs-6">
+                                Sin responder: ${tiempoStr}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+                listEl.innerHTML = nodosText;
+            }
+            overlay.classList.add('active');
+        } else {
+            ocultarAlertaVisual();
+        }
+    }
+
+    function ocultarAlertaVisual() {
+        const overlay = document.getElementById('critical-alert-overlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+
+    window.silenciarAlertaVisual = function() {
+        if (window.lastCaidasMasDeUnMinuto) {
+            window.lastCaidasMasDeUnMinuto.forEach(c => {
+                visualAlertDismissedFor[c.id] = true;
+            });
+        }
+        ocultarAlertaVisual();
+    };
+
+    window.showCriticalAlert = function(msg) {
+        // Función global de respaldo para dashboard.js
+        if (window.lastCaidasMasDeUnMinuto && window.lastCaidasMasDeUnMinuto.length > 0) {
+            mostrarAlertaVisual(window.lastCaidasMasDeUnMinuto);
+        }
+    };
+
     function mostrarToastAlerta(mensaje, icon) {
         let bgColor = '#ffffff';
         if (icon === 'error') bgColor = '#fdecea';

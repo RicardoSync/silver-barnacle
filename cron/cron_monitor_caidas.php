@@ -62,7 +62,7 @@ $stmtResolverCaida = $con->prepare("
     SET fecha_recuperacion = NOW(), 
         duracion_minutos = TIMESTAMPDIFF(MINUTE, fecha_caida, NOW()), 
         estado = 'resuelta' 
-    WHERE id = ?
+    WHERE nodo_id = ? AND tipo_nodo = ? AND estado = 'en_curso'
 ");
 
 // Iterar y procesar cada nodo
@@ -108,7 +108,7 @@ foreach ($nodos as $nodo) {
         // EL NODO ESTÁ ONLINE
         if ($caida) {
             // Acaba de recuperarse
-            $stmtResolverCaida->execute([$caida['id']]);
+            $stmtResolverCaida->execute([$nodo['id'], $nodo['tipo']]);
             
             // Si llegamos a notificar la caída (minutos >= 3), notificamos la recuperación
             if ($caida['notificado_3m'] == 1) {

@@ -95,13 +95,44 @@ switch ($action) {
             $stmt1->execute([$last_alerta_id]);
             $nuevas_alertas = $stmt1->fetchAll(PDO::FETCH_ASSOC);
 
-            // Buscar caídas activas (en curso) con tiempo transcurrido en segundos
+            // 1. Resolver caídas activas de nodos que hayan sido eliminados lógicamente (estado_actual = 0 o estado = 0) o borrados
+            $con->exec("
+                UPDATE historial_caidas h
+                LEFT JOIN mikrotiks m ON h.tipo_nodo = 'mikrotik' AND h.nodo_id = m.id
+                LEFT JOIN equipos e ON h.tipo_nodo = 'equipo' AND h.nodo_id = e.id
+                SET h.estado = 'resuelta', h.fecha_recuperacion = NOW()
+                WHERE h.estado = 'en_curso'
+                  AND (
+                    (h.tipo_nodo = 'mikrotik' AND (m.id IS NULL OR m.estado_actual = 0)) OR
+                    (h.tipo_nodo = 'equipo' AND (e.id IS NULL OR e.estado = 0))
+                  )
+            ");
+
+            // 2. Limpiar registros duplicados de caídas en curso si existían por nombre de nodo
+            $con->exec("
+                UPDATE historial_caidas h1
+                JOIN historial_caidas h2 
+                  ON LOWER(TRIM(h1.nombre_nodo)) = LOWER(TRIM(h2.nombre_nodo))
+                 AND h1.estado = 'en_curso' 
+                 AND h2.estado = 'en_curso' 
+                 AND h1.id > h2.id
+                SET h1.estado = 'resuelta', h1.fecha_recuperacion = NOW()
+            ");
+
+            // 3. Buscar caídas activas (en curso) ÚNICAMENTE de nodos ACTIVOS (estado_actual = 1 o estado = 1)
             $stmt2 = $con->prepare("
-                SELECT id, nodo_id, tipo_nodo, nombre_nodo, fecha_caida, estado,
-                       TIMESTAMPDIFF(SECOND, fecha_caida, NOW()) as segundos_caida 
-                FROM historial_caidas 
-                WHERE estado = 'en_curso'
-                ORDER BY id ASC
+                SELECT MIN(h.id) as id, MAX(h.nodo_id) as nodo_id, MAX(h.tipo_nodo) as tipo_nodo, h.nombre_nodo, MIN(h.fecha_caida) as fecha_caida, h.estado,
+                       TIMESTAMPDIFF(SECOND, MIN(h.fecha_caida), NOW()) as segundos_caida 
+                FROM historial_caidas h
+                LEFT JOIN mikrotiks m ON h.tipo_nodo = 'mikrotik' AND h.nodo_id = m.id
+                LEFT JOIN equipos e ON h.tipo_nodo = 'equipo' AND h.nodo_id = e.id
+                WHERE h.estado = 'en_curso'
+                  AND (
+                    (h.tipo_nodo = 'mikrotik' AND m.estado_actual = 1) OR
+                    (h.tipo_nodo = 'equipo' AND e.estado = 1)
+                  )
+                GROUP BY h.nombre_nodo
+                ORDER BY MIN(h.fecha_caida) ASC
             ");
             $stmt2->execute();
             $nuevas_caidas = $stmt2->fetchAll(PDO::FETCH_ASSOC);

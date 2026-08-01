@@ -441,13 +441,7 @@ function loadDashboardData() {
                 // Renderizar la lista de problemas activos (Tabla Zabbix)
                 renderActiveProblemsTable(nodos);
 
-                if (newlyOfflineNodes.length > 0) {
-                    if (newlyOfflineNodes.length === 1) {
-                        showCriticalAlert(`CAÍDO: ${newlyOfflineNodes[0]}`);
-                    } else {
-                        showCriticalAlert(`CAÍDOS: ${newlyOfflineNodes.join(', ')}`);
-                    }
-                }
+                // Las alertas sonoras y la pantalla roja se gestionan centralizadamente en app.js al superar 1 minuto sin responder.
 
                 const updateEl = document.getElementById('dashboard-last-update');
                 if (updateEl) updateEl.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i> Actualizado: ' + new Date().toLocaleTimeString();

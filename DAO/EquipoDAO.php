@@ -81,7 +81,13 @@ class EquipoDAO {
         try {
             $stmt = $this->conexion->prepare("UPDATE equipos SET estado = 0 WHERE id = :id");
             $stmt->bindParam(":id", $id, PDO::PARAM_INT);
-            return $stmt->execute();
+            $res = $stmt->execute();
+
+            // Marcar las caídas activas como resueltas al eliminar/deshabilitar lógicamente el Equipo
+            $stmtC = $this->conexion->prepare("UPDATE historial_caidas SET estado = 'resuelta', fecha_recuperacion = NOW() WHERE nodo_id = ? AND tipo_nodo = 'equipo' AND estado = 'en_curso'");
+            $stmtC->execute([$id]);
+
+            return $res;
         } catch (PDOException $e) {
             return false;
         }
