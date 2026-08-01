@@ -67,6 +67,11 @@ switch ($action) {
             $msg = $res ? "Equipo registrado correctamente" : "Error al registrar el equipo";
         }
 
+        if ($res) {
+            require_once __DIR__ . '/../DAO/TopologiaDAO.php';
+            (new TopologiaDAO())->sincronizarConInventario();
+        }
+
         echo json_encode(array("status" => $res ? "success" : "error", "message" => $msg));
         break;
 
@@ -75,6 +80,8 @@ switch ($action) {
         if ($id > 0) {
             $res = $dao->borradoLogico($id);
             if ($res) {
+                require_once __DIR__ . '/../DAO/TopologiaDAO.php';
+                (new TopologiaDAO())->sincronizarConInventario();
                 echo json_encode(array("status" => "success", "message" => "Equipo eliminado correctamente"));
             } else {
                 echo json_encode(array("status" => "error", "message" => "Error al eliminar el equipo"));

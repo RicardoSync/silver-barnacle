@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/DAO/MikrotikDAO.php';
+require_once __DIR__ . '/DAO/ServicioDAO.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 use RouterOS\Client;
@@ -317,6 +318,69 @@ switch ($action) {
         } catch (\Exception $e) { 
             echo json_encode(array("status" => "error", "message" => $e->getMessage())); 
         }
+        break;
+
+    case 'servicios_listar':
+        $sDao = new ServicioDAO();
+        $servicios = $sDao->obtenerUltimoEstadoCompleto();
+        echo json_encode(array("status" => "success", "data" => $servicios));
+        break;
+
+    case 'servicios_guardar':
+        $sDao = new ServicioDAO();
+        $id = isset($_POST['id']) && !empty($_POST['id']) ? intval($_POST['id']) : null;
+        $nombre = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
+        $tipo = isset($_POST['tipo']) ? trim($_POST['tipo']) : 'dns';
+        $target = isset($_POST['target']) ? trim($_POST['target']) : '';
+        $puerto = isset($_POST['puerto']) && $_POST['puerto'] !== '' ? intval($_POST['puerto']) : null;
+        $umbral_ms = isset($_POST['umbral_ms']) && intval($_POST['umbral_ms']) > 0 ? intval($_POST['umbral_ms']) : 300;
+        $estado = isset($_POST['estado']) ? intval($_POST['estado']) : 1;
+
+        if (empty($nombre) || empty($target)) {
+            echo json_encode(array("status" => "error", "message" => "El nombre y objetivo son obligatorios."));
+            break;
+        }
+
+        if ($id) {
+            $res = $sDao->actualizar($id, $nombre, $tipo, $target, $puerto, $umbral_ms, $estado);
+        } else {
+            $res = $sDao->crear($nombre, $tipo, $target, $puerto, $umbral_ms);
+        }
+
+        if ($res) {
+            echo json_encode(array("status" => "success", "message" => "Servicio guardado con éxito."));
+        } else {
+            echo json_encode(array("status" => "error", "message" => "Error al guardar el servicio en la BD."));
+        }
+        break;
+
+    case 'servicios_eliminar':
+        $sDao = new ServicioDAO();
+        $id = isset($_POST['id']) ? intval($_POST['id']) : (isset($_GET['id']) ? intval($_GET['id']) : 0);
+        if ($id > 0) {
+            if ($sDao->eliminar($id)) {
+                echo json_encode(array("status" => "success", "message" => "Servicio eliminado correctamente."));
+            } else {
+                echo json_encode(array("status" => "error", "message" => "No se pudo eliminar el servicio."));
+            }
+        } else {
+            echo json_encode(array("status" => "error", "message" => "ID no válido."));
+        }
+        break;
+
+    case 'servicios_historico':
+        $sDao = new ServicioDAO();
+        $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+        $horas = isset($_GET['horas']) ? intval($_GET['horas']) : 24;
+        $historico = $sDao->obtenerHistoricoGrafica($id, $horas);
+        echo json_encode(array("status" => "success", "data" => $historico));
+        break;
+
+    case 'servicios_resumen_dashboard':
+        $sDao = new ServicioDAO();
+        $resumen = $sDao->obtenerResumenDashboard();
+        $servicios = $sDao->obtenerUltimoEstadoCompleto();
+        echo json_encode(array("status" => "success", "kpis" => $resumen, "data" => $servicios));
         break;
 
     default:

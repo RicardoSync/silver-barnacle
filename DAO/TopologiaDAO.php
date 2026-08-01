@@ -9,8 +9,64 @@ class TopologiaDAO {
     }
 
     public function obtenerNodos() {
+        $this->sincronizarConInventario();
         $stmt = $this->db->query("SELECT * FROM topologia_nodos ORDER BY id ASC");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function sincronizarConInventario() {
+        try {
+            // 1. Purga de equipos borrados/desactivados
+            $stmtEq = $this->db->query("SELECT id, nombre, ip_address FROM equipos WHERE estado = 1");
+            $activeEquipos = $stmtEq->fetchAll(PDO::FETCH_ASSOC);
+            $activeEqIds = array_column($activeEquipos, 'id');
+            $activeEqMap = [];
+            foreach ($activeEquipos as $e) { $activeEqMap[$e['id']] = $e; }
+
+            // 2. Purga de mikrotiks borrados/desactivados
+            $stmtMk = $this->db->query("SELECT id, nombre, ip_address FROM mikrotiks WHERE estado_actual = 1");
+            $activeMikrotiks = $stmtMk->fetchAll(PDO::FETCH_ASSOC);
+            $activeMkIds = array_column($activeMikrotiks, 'id');
+            $activeMkMap = [];
+            foreach ($activeMikrotiks as $m) { $activeMkMap[$m['id']] = $m; }
+
+            // 3. Obtener nodos actuales de topología
+            $stmtNodes = $this->db->query("SELECT id, nombre, ip_address, equipo_ref_id, tipo_ref FROM topologia_nodos");
+            $topoNodes = $stmtNodes->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($topoNodes as $node) {
+                if ($node['tipo_ref'] === 'equipo' && $node['equipo_ref_id']) {
+                    if (!in_array($node['equipo_ref_id'], $activeEqIds)) {
+                        // El equipo ya no existe o fue eliminado de la tabla equipos -> eliminar de topologia
+                        $this->eliminarNodo($node['id']);
+                    } else {
+                        // Actualizar nombre o IP si cambió en la tabla equipos
+                        $eqInfo = $activeEqMap[$node['equipo_ref_id']];
+                        if ($eqInfo['nombre'] !== $node['nombre'] || $eqInfo['ip_address'] !== $node['ip_address']) {
+                            $stmtUp = $this->db->prepare("UPDATE topologia_nodos SET nombre = ?, ip_address = ? WHERE id = ?");
+                            $stmtUp->execute([$eqInfo['nombre'], $eqInfo['ip_address'], $node['id']]);
+                        }
+                    }
+                } elseif ($node['tipo_ref'] === 'mikrotik' && $node['equipo_ref_id']) {
+                    if (!in_array($node['equipo_ref_id'], $activeMkIds)) {
+                        // El mikrotik fue eliminado -> eliminar de topologia
+                        $this->eliminarNodo($node['id']);
+                    } else {
+                        // Actualizar nombre o IP si cambió
+                        $mkInfo = $activeMkMap[$node['equipo_ref_id']];
+                        if ($mkInfo['nombre'] !== $node['nombre'] || $mkInfo['ip_address'] !== $node['ip_address']) {
+                            $stmtUp = $this->db->prepare("UPDATE topologia_nodos SET nombre = ?, ip_address = ? WHERE id = ?");
+                            $stmtUp->execute([$mkInfo['nombre'], $mkInfo['ip_address'], $node['id']]);
+                        }
+                    }
+                }
+            }
+
+            // 4. Auto-importar dispositivos activos que aún no estén en el mapa
+            $this->importarDispositivosExistentes();
+        } catch (\Exception $ex) {
+            error_log("Error en sincronizarConInventario: " . $ex->getMessage());
+        }
     }
 
     public function obtenerEnlaces() {
@@ -83,8 +139,9 @@ class TopologiaDAO {
         $gap_y = 160;
         $max_cols = 4;
         
-        // Obtener nodos existentes en topologia para evitar duplicados
-        $nodosExistentes = $this->obtenerNodos();
+        // Obtener nodos existentes directamente de la DB sin llamar a obtenerNodos() para evitar recursión
+        $stmtExist = $this->db->query("SELECT * FROM topologia_nodos ORDER BY id ASC");
+        $nodosExistentes = $stmtExist->fetchAll(PDO::FETCH_ASSOC);
         $refsMikrotik = [];
         $refsEquipo = [];
         $ipsExistentes = [];

@@ -63,13 +63,19 @@ $(document).ready(function() {
                 }
             }
         });
+
+        window.chartPingInstance = chartPing;
+        window.chartRecursosInstance = chartRecursos;
+        window.chartCaidasInstance = chartCaidas;
+        window.chartPingEquipoInstance = chartPingEquipo;
+        window.trafficChartsInstance = trafficCharts;
     }
 
     function cargarDatosGraficas() {
         const mikrotik_id = $('#selectAnaliticasMikrotik').val();
         const horas = $('#selectAnaliticasHoras').val();
         
-        cargarCaidas(horas); // Caídas es global
+        cargarCaidas(horas);
 
         if (!mikrotik_id) {
             $('#analiticasChartsContainer').hide();
@@ -78,14 +84,13 @@ $(document).ready(function() {
 
         $('#analiticasChartsContainer').show();
         
-        // Limpiamos selección de equipo si se seleccionó mikrotik
         if ($('#selectAnaliticasEquipo').val() !== "") {
             $('#selectAnaliticasEquipo').val('');
         }
 
         $('#contenedorInterfaces').show();
         $('#contenedorChartPingMikrotik, #contenedorChartRecursos, #contenedorChartCaidas').show();
-        $('#contenedorChartPingEquipo').hide();
+        $('#contenedorChartPingEquipo, #contenedorKpiEquipoAnaliticas').hide();
 
         cargarTraficoDynamic(mikrotik_id, horas);
         cargarPing(mikrotik_id, horas);
@@ -93,41 +98,76 @@ $(document).ready(function() {
     }
 
     function cargarTraficoDynamic(mikrotik_id, horas) {
-        // 1. Obtener interfaces
         $.ajax({
             url: 'controllers/AnaliticasController.php',
             type: 'GET',
             data: { action: 'getInterfaces', mikrotik_id: mikrotik_id },
             dataType: 'json',
             success: function(interfaces) {
-                // Limpiar gráficas anteriores
                 for (let key in trafficCharts) {
                     trafficCharts[key].destroy();
                 }
                 trafficCharts = {};
                 $('#contenedorInterfaces').empty();
+                $('#contenedorFiltroInterfaces').empty();
+                $('#contenedorFiltroInterfacesWrapper').hide();
 
                 if (!interfaces || interfaces.length === 0) {
                     $('#contenedorInterfaces').html('<div class="alert alert-info">No hay datos de tráfico para este Mikrotik.</div>');
                 } else {
-                    // Mostrar loader
+                    $('#contenedorFiltroInterfacesWrapper').show();
+                    let filterPillsHtml = `<button class="btn btn-xs btn-primary active me-1 btn-filter-iface" data-iface="all"><i class="bi bi-check2-all me-1"></i>Todas</button>`;
+                    interfaces.forEach(iface => {
+                        filterPillsHtml += `<button class="btn btn-xs btn-outline-secondary me-1 btn-filter-iface" data-iface="${iface}">${iface}</button>`;
+                    });
+                    $('#contenedorFiltroInterfaces').html(filterPillsHtml);
+
+                    $('.btn-filter-iface').off('click').on('click', function() {
+                        const targetIface = $(this).data('iface');
+                        if (targetIface === 'all') {
+                            $('.btn-filter-iface').removeClass('btn-primary active').addClass('btn-outline-secondary');
+                            $(this).removeClass('btn-outline-secondary').addClass('btn-primary active');
+                            $('.card-interface-wrapper').show();
+                        } else {
+                            $('.btn-filter-iface[data-iface="all"]').removeClass('btn-primary active').addClass('btn-outline-secondary');
+                            $(this).toggleClass('btn-primary active btn-outline-secondary');
+                            
+                            const activeIfaces = [];
+                            $('.btn-filter-iface.active:not([data-iface="all"])').each(function() {
+                                activeIfaces.push($(this).data('iface'));
+                            });
+
+                            if (activeIfaces.length === 0) {
+                                $('.btn-filter-iface[data-iface="all"]').removeClass('btn-outline-secondary').addClass('btn-primary active');
+                                $('.card-interface-wrapper').show();
+                            } else {
+                                $('.card-interface-wrapper').each(function() {
+                                    const cardIface = $(this).data('iface');
+                                    if (activeIfaces.includes(cardIface)) {
+                                        $(this).show();
+                                    } else {
+                                        $(this).hide();
+                                    }
+                                });
+                            }
+                        }
+                    });
+
                     $('#contenedorInterfaces').append('<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div> Cargando y renderizando gráficas de tráfico...</div>');
 
-                    // 2. Fetch todo el tráfico
                     $.ajax({
                         url: 'controllers/AnaliticasController.php',
                         type: 'GET',
                         data: { action: 'getTrafico', mikrotik_id: mikrotik_id, horas: horas },
                         dataType: 'json',
                         success: function(resTrafico) {
-                            $('#contenedorInterfaces').empty(); // remover loader
+                            $('#contenedorInterfaces').empty();
                             
                             let dataByIf = {};
                             interfaces.forEach(iface => dataByIf[iface] = {rx:[], tx:[]});
                             
                             resTrafico.forEach(item => {
                                 if (dataByIf[item.interface]) {
-                                    // Para parsing: false en Chart.js, x debe ser timestamp en ms y y debe ser número
                                     let timeMs = new Date(item.fecha_registro.replace(' ', 'T')).getTime();
                                     dataByIf[item.interface].rx.push({ x: timeMs, y: parseFloat((item.rx_bits / 1000000).toFixed(2)) });
                                     dataByIf[item.interface].tx.push({ x: timeMs, y: parseFloat((item.tx_bits / 1000000).toFixed(2)) });
@@ -138,9 +178,13 @@ $(document).ready(function() {
                             interfaces.forEach((iface, index) => {
                                 let divId = `chart-trafico-${index}`;
                                 let html = `
-                                <div class="card border-0 shadow-sm mb-4">
-                                    <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                                <div class="card border-0 shadow-sm mb-4 card-interface-wrapper" data-iface="${iface}">
+                                    <div class="card-header bg-white border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
                                         <h5 class="card-title fs-6 fw-bold mb-0">Tráfico - Interface: <span class="text-primary">${iface}</span></h5>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style="font-size: 10px;">${iface}</span>
+                                            <button class="btn btn-xs btn-outline-secondary" onclick="abrirModalGraficaAnaliticas('iface_${iface}', 'Tráfico - Interface: ${iface}')"><i class="bi bi-arrows-fullscreen me-1"></i> Ampliar</button>
+                                        </div>
                                     </div>
                                     <div class="card-body">
                                         <div style="height: ${isFirst ? '300px' : '200px'};">
@@ -163,8 +207,8 @@ $(document).ready(function() {
                                     options: {
                                         responsive: true,
                                         maintainAspectRatio: false,
-                                        parsing: false, // Performance
-                                        animation: false, // Turn off animation for large datasets
+                                        parsing: false,
+                                        animation: false,
                                         scales: {
                                             x: { type: 'time', time: { tooltipFormat: 'dd MMM yyyy HH:mm' } },
                                             y: { title: { display: true, text: 'Mbps' }, beginAtZero: true }
@@ -173,6 +217,8 @@ $(document).ready(function() {
                                     }
                                 });
                             });
+
+                            window.trafficChartsInstance = trafficCharts;
                         }
                     });
                 }
@@ -201,6 +247,7 @@ $(document).ready(function() {
                 ];
                 chartPing.options.animation = false;
                 chartPing.update();
+                window.chartPingInstance = chartPing;
             }
         });
     }
@@ -235,6 +282,7 @@ $(document).ready(function() {
                 };
                 chartRecursos.options.animation = false;
                 chartRecursos.update();
+                window.chartRecursosInstance = chartRecursos;
             }
         });
     }
@@ -264,25 +312,78 @@ $(document).ready(function() {
                     ]
                 };
                 chartCaidas.update();
+                window.chartCaidasInstance = chartCaidas;
             }
         });
     }
 
-    function cargarPingEquipo(equipo_id, horas) {
-        if (!equipo_id) {
-            $('#contenedorChartPingEquipo').hide();
+    function updateEquipoAnaliticasKPIs(res) {
+        if (!res || res.length === 0) {
+            $('#stat-an-ping-avg').text('0 ms');
+            $('#stat-an-ping-minmax').text('Min: 0 / Max: 0');
+            $('#stat-an-uptime').text('0%');
+            $('#stat-an-online-time').text('0 min');
+            $('#stat-an-offline-time').text('Caído: 0 min');
+            $('#stat-an-loss').text('0%');
+            $('#stat-an-probes').text('Muestras: 0');
             return;
         }
 
-        // Limpiamos el mikrotik si se seleccionó equipo
+        let totalMs = 0;
+        let validCount = 0;
+        let offlineCount = 0;
+        let minMs = Infinity;
+        let maxMs = -1;
+
+        res.forEach(item => {
+            const ms = parseInt(item.ms);
+            if (ms > 0) {
+                totalMs += ms;
+                validCount++;
+                if (ms < minMs) minMs = ms;
+                if (ms > maxMs) maxMs = ms;
+            } else {
+                offlineCount++;
+            }
+        });
+
+        const totalProbes = res.length;
+        const avgMs = validCount > 0 ? Math.round(totalMs / validCount) : 0;
+        const uptimePercent = Math.round((validCount / totalProbes) * 1000) / 10;
+        const lossPercent = Math.round((offlineCount / totalProbes) * 1000) / 10;
+
+        const formatTime = (mins) => {
+            if (mins >= 60) {
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                return `${h}h ${m}m`;
+            }
+            return `${mins} min`;
+        };
+
+        $('#stat-an-ping-avg').text(`${avgMs} ms`);
+        $('#stat-an-ping-minmax').text(`Min: ${minMs === Infinity ? 0 : minMs}ms / Max: ${maxMs === -1 ? 0 : maxMs}ms`);
+        $('#stat-an-uptime').text(`${uptimePercent}%`).attr('class', uptimePercent >= 98 ? 'fs-4 fw-bold text-success' : (uptimePercent >= 90 ? 'fs-4 fw-bold text-warning' : 'fs-4 fw-bold text-danger'));
+        $('#stat-an-online-time').text(formatTime(validCount));
+        $('#stat-an-offline-time').text(`Caído: ${formatTime(offlineCount)}`);
+        $('#stat-an-loss').text(`${lossPercent}%`);
+        $('#stat-an-probes').text(`Muestras BD: ${totalProbes}`);
+    }
+
+    function cargarPingEquipo(equipo_id, horas) {
+        if (!equipo_id) {
+            $('#contenedorChartPingEquipo, #contenedorKpiEquipoAnaliticas').hide();
+            return;
+        }
+
         if ($('#selectAnaliticasMikrotik').val() !== "") {
             $('#selectAnaliticasMikrotik').val('');
         }
 
         $('#analiticasChartsContainer').show();
-        $('#contenedorInterfaces').hide();
+        $('#contenedorInterfaces, #contenedorFiltroInterfacesWrapper').hide();
         $('#contenedorChartPingMikrotik, #contenedorChartRecursos, #contenedorChartCaidas').hide();
-        $('#contenedorChartPingEquipo').show();
+        $('#contenedorChartPingEquipo, #contenedorKpiEquipoAnaliticas').show();
         
         $.ajax({
             url: 'controllers/AnaliticasController.php',
@@ -290,8 +391,9 @@ $(document).ready(function() {
             data: { action: 'getPingEquipo', equipo_id: equipo_id, horas: horas },
             dataType: 'json',
             success: function(res) {
+                updateEquipoAnaliticasKPIs(res);
+
                 const msData = [];
-                
                 res.forEach(item => {
                     msData.push({ x: item.fecha_registro, y: item.ms });
                 });
@@ -301,6 +403,7 @@ $(document).ready(function() {
                 ];
                 chartPingEquipo.options.animation = false;
                 chartPingEquipo.update();
+                window.chartPingEquipoInstance = chartPingEquipo;
             }
         });
     }
@@ -324,7 +427,7 @@ $(document).ready(function() {
         if ($(this).val() !== "") {
             cargarPingEquipo($(this).val(), $('#selectAnaliticasHoras').val());
         } else {
-            $('#contenedorChartPingEquipo').hide();
+            $('#contenedorChartPingEquipo, #contenedorKpiEquipoAnaliticas').hide();
             if ($('#selectAnaliticasMikrotik').val() === "") {
                 $('#analiticasChartsContainer').hide();
             }
@@ -372,3 +475,99 @@ $(document).ready(function() {
         }
     };
 });
+
+// Funciones Globales para Zoom Modal de Analíticas
+let modalAnaliticasChartInstance = null;
+
+window.abrirModalGraficaAnaliticas = function(chartKey, title) {
+    let sourceChart = null;
+
+    if (chartKey === 'ping') sourceChart = window.chartPingInstance || null;
+    else if (chartKey === 'recursos') sourceChart = window.chartRecursosInstance || null;
+    else if (chartKey === 'caidas') sourceChart = window.chartCaidasInstance || null;
+    else if (chartKey === 'pingEquipo') sourceChart = window.chartPingEquipoInstance || null;
+    else if (chartKey.startsWith('iface_')) {
+        const ifaceName = chartKey.replace('iface_', '');
+        sourceChart = (window.trafficChartsInstance && window.trafficChartsInstance[ifaceName]) ? window.trafficChartsInstance[ifaceName] : null;
+    }
+
+    if (!sourceChart || !sourceChart.data || !sourceChart.data.datasets) return;
+
+    document.getElementById('modalAnaliticasTitle').innerHTML = `<i class="bi bi-arrows-fullscreen me-2"></i> ${title}`;
+
+    if (modalAnaliticasChartInstance) {
+        modalAnaliticasChartInstance.destroy();
+        modalAnaliticasChartInstance = null;
+    }
+
+    const ctx = document.getElementById('canvasAnaliticasFullScreen').getContext('2d');
+    const chartType = sourceChart.config.type || 'line';
+    const isLine = (chartType === 'line');
+
+    let clonedData = {
+        labels: sourceChart.data.labels ? sourceChart.data.labels.slice() : [],
+        datasets: sourceChart.data.datasets.map(ds => ({
+            label: ds.label || '',
+            data: ds.data ? ds.data.slice() : [],
+            borderColor: ds.borderColor,
+            backgroundColor: ds.backgroundColor,
+            fill: ds.fill,
+            tension: ds.tension,
+            borderWidth: ds.borderWidth,
+            yAxisID: ds.yAxisID
+        }))
+    };
+
+    let options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: isLine ? {
+            x: { type: 'time', time: { tooltipFormat: 'dd MMM yyyy HH:mm' } },
+            y: { title: { display: true, text: 'Valor' }, beginAtZero: true }
+        } : {
+            x: { beginAtZero: true }
+        },
+        plugins: {
+            zoom: {
+                pan: { enabled: true, mode: 'x' },
+                zoom: { wheel: { enabled: true }, drag: { enabled: true }, mode: 'x' }
+            }
+        }
+    };
+
+    if (chartKey === 'recursos') {
+        options.scales.y.title = { display: true, text: 'Uso CPU (%)' };
+        options.scales.y1 = {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            title: { display: true, text: 'RAM Usada (MB)' },
+            grid: { drawOnChartArea: false }
+        };
+    } else if (chartKey.startsWith('iface_')) {
+        options.scales.y.title = { display: true, text: 'Mbps' };
+    } else if (chartKey === 'ping' || chartKey === 'pingEquipo') {
+        options.scales.y.title = { display: true, text: 'Milisegundos (ms)' };
+    }
+
+    modalAnaliticasChartInstance = new Chart(ctx, {
+        type: chartType,
+        data: clonedData,
+        options: options
+    });
+
+    let modal = new bootstrap.Modal(document.getElementById('modalAnaliticasFullScreen'));
+    modal.show();
+};
+
+window.zoomAnaliticasChart = function(factor) {
+    if (modalAnaliticasChartInstance && typeof modalAnaliticasChartInstance.zoom === 'function') {
+        modalAnaliticasChartInstance.zoom(factor);
+    }
+};
+
+window.resetAnaliticasChartZoom = function() {
+    if (modalAnaliticasChartInstance && typeof modalAnaliticasChartInstance.resetZoom === 'function') {
+        modalAnaliticasChartInstance.resetZoom();
+    }
+};

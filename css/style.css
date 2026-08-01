@@ -648,4 +648,346 @@ body.is-fullscreen #sidebarCollapse {
     border-radius: 0 !important;
 }
 
+/* ==========================================================================
+   ESTILOS DE DASHBOARD: VELOCÍMETROS & COLMENA HEXAGONAL
+   ========================================================================== */
+.gauge-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 16px !important;
+}
+.gauge-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06) !important;
+}
+
+.speedometer-wrapper {
+    width: 150px;
+    height: 80px;
+    margin: 0 auto;
+}
+
+.speedometer-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.speedometer-val {
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
+
+/* Contenedor principal Colmena */
+.wisp-colmena-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 25px 15px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    min-height: 400px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.02);
+}
+
+/* Grid de Hexágonos tipo Colmena */
+.hex-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.hex-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px; /* Espaciado horizontal entre hexágonos */
+    margin-bottom: -28px; /* Superposición vertical para encaje colmena */
+}
+
+/* Hexágono individual */
+.hex-node {
+    width: 132px;
+    height: 115px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
+    filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.08));
+}
+
+.hex-node:hover {
+    transform: scale(1.16);
+    z-index: 30;
+    filter: drop-shadow(0 12px 24px rgba(15, 23, 42, 0.22));
+}
+
+/* Forma Hexagonal recortada (Flat topped) */
+.hex-inner {
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+/* Contenido dentro del hexágono */
+.hex-icon {
+    font-size: 1.65rem;
+    margin-bottom: 1px;
+    transition: transform 0.2s ease;
+}
+
+.hex-node:hover .hex-icon {
+    transform: scale(1.15);
+}
+
+.hex-title {
+    font-size: 11px;
+    font-weight: 700;
+    max-width: 90px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.hex-ip {
+    font-size: 9.5px;
+    font-family: monospace;
+    opacity: 0.8;
+    margin-top: 1px;
+}
+
+.hex-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-top: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Badges de Hardware/Alerta en Hexágono */
+.hex-hw-alert {
+    position: absolute;
+    top: 6px;
+    right: 22px;
+    z-index: 5;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+    animation: alertBlink 1s infinite alternate;
+}
+
+@keyframes alertBlink {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.25); opacity: 0.7; }
+}
+
+/* Estados de Hexágonos */
+.hex-node.online .hex-inner {
+    background: linear-gradient(145deg, #ffffff 0%, #f0fdf4 100%);
+    color: #064e3b;
+}
+.hex-node.online .hex-icon { color: #10b981; }
+.hex-node.online .hex-badge { background: #dcfce7; color: #15803d; }
+
+/* Estado Alerta (Latencia Alta, CPU o RAM alta) */
+.hex-node.alerta .hex-inner {
+    background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%);
+    color: #78350f;
+    animation: hexPulseAlert 2s infinite ease-in-out;
+}
+.hex-node.alerta .hex-icon { color: #d97706; }
+.hex-node.alerta .hex-badge { background: #fef3c7; color: #b45309; }
+
+@keyframes hexPulseAlert {
+    0% { filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.4)); }
+    50% { filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.85)); }
+    100% { filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.4)); }
+}
+
+/* Estado Offline (Caído) */
+.hex-node.offline .hex-inner {
+    background: linear-gradient(145deg, #fef2f2 0%, #fee2e2 100%);
+    color: #7f1d1d;
+    animation: hexPulseOffline 1.2s infinite ease-in-out;
+}
+.hex-node.offline .hex-icon { color: #ef4444; }
+.hex-node.offline .hex-badge { background: #fee2e2; color: #b91c1c; }
+
+/* ==========================================================================
+   ESTILOS NOC DASHBOARD LIGHT THEME
+   ========================================================================== */
+.pulse-led-green {
+    width: 8px;
+    height: 8px;
+    background-color: #10b981;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px #10b981;
+    animation: ledGreenPulse 1.2s infinite;
+}
+
+@keyframes ledGreenPulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.wisp-colmena-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 5px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    min-height: 280px;
+}
+
+.hex-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.hex-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: -22px; /* Encaje vertical correcto para flat-top */
+}
+
+/* Hexágono compacto light */
+.hex-node {
+    width: 98px;
+    height: 84px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.hex-node:hover {
+    transform: scale(1.2);
+    z-index: 50;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.2));
+}
+
+.hex-inner {
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    text-align: center;
+    color: #212529;
+    font-weight: 700;
+}
+
+.hex-node.online .hex-inner {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.hex-node.alerta .hex-inner {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #ffffff;
+    animation: hexAlertPulse 1.5s infinite alternate;
+}
+
+.hex-node.offline .hex-inner {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    animation: hexOfflinePulse 1s infinite alternate;
+}
+
+@keyframes hexAlertPulse {
+    0% { filter: brightness(1); }
+    100% { filter: brightness(1.15); }
+}
+
+@keyframes hexOfflinePulse {
+    0% { filter: brightness(1); }
+    100% { filter: brightness(1.2) drop-shadow(0 0 10px rgba(239, 68, 68, 0.5)); }
+}
+
+.hex-title {
+    font-size: 10px;
+    font-weight: 800;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+    letter-spacing: -0.2px;
+}
+
+.hex-status {
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.95;
+    margin-top: 2px;
+    text-transform: uppercase;
+}
+
+.hex-ping {
+    font-size: 8.5px;
+    font-family: monospace;
+    background: rgba(0,0,0,0.15);
+    padding: 0 4px;
+    border-radius: 4px;
+    margin-top: 2px;
+}
+
+/* Tabla de Problemas Light */
+#problems-tbody tr.problem-row-down {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-left: 4px solid #ef4444;
+}
+
+#problems-tbody tr.problem-row-alert {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+    border-left: 4px solid #f59e0b;
+}
+
+.blink-badge {
+    animation: badgeBlink 1.2s infinite alternate;
+}
+
+@keyframes badgeBlink {
+    0% { opacity: 1; }
+    100% { opacity: 0.4; }
+}
+
+
 

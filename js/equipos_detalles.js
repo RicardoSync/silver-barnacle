@@ -93,7 +93,7 @@ window.refreshEquiposDetalles = function() {
     initEquiposDetallesModule();
     
     // Si la pestaña de histórico está activa, la recargamos
-    if(document.getElementById('historico-tab').classList.contains('active')) {
+    if(document.getElementById('historico-tab') && document.getElementById('historico-tab').classList.contains('active')) {
         loadEquipoHistorico();
     }
 }
@@ -123,12 +123,76 @@ window.loadEquipoHistorico = function() {
         Swal.close();
         Swal.fire('Error', 'Fallo de red al obtener el historial.', 'error');
     });
+};
+
+function calculateEquipoStats(data) {
+    if (!data || data.length === 0) {
+        if (document.getElementById('stat-ping-avg')) document.getElementById('stat-ping-avg').innerText = '0 ms';
+        if (document.getElementById('stat-ping-minmax')) document.getElementById('stat-ping-minmax').innerText = 'Min: 0 / Max: 0';
+        if (document.getElementById('stat-uptime-percent')) document.getElementById('stat-uptime-percent').innerText = '0%';
+        if (document.getElementById('stat-online-time')) document.getElementById('stat-online-time').innerText = '0 min';
+        if (document.getElementById('stat-offline-time')) document.getElementById('stat-offline-time').innerText = 'Caído: 0 min';
+        if (document.getElementById('stat-loss-percent')) document.getElementById('stat-loss-percent').innerText = '0%';
+        if (document.getElementById('stat-total-probes')) document.getElementById('stat-total-probes').innerText = 'Muestras: 0';
+        return;
+    }
+
+    let totalMs = 0;
+    let validCount = 0;
+    let offlineCount = 0;
+    let minMs = Infinity;
+    let maxMs = -1;
+
+    data.forEach(item => {
+        const ms = parseInt(item.ms);
+        if (ms > 0) {
+            totalMs += ms;
+            validCount++;
+            if (ms < minMs) minMs = ms;
+            if (ms > maxMs) maxMs = ms;
+        } else {
+            offlineCount++;
+        }
+    });
+
+    const totalProbes = data.length;
+    const avgMs = validCount > 0 ? Math.round(totalMs / validCount) : 0;
+    const uptimePercent = Math.round((validCount / totalProbes) * 1000) / 10;
+    const lossPercent = Math.round((offlineCount / totalProbes) * 1000) / 10;
+
+    const onlineMinutes = validCount;
+    const offlineMinutes = offlineCount;
+
+    const formatTime = (mins) => {
+        if (mins >= 60) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}h ${m}m`;
+        }
+        return `${mins} min`;
+    };
+
+    if (document.getElementById('stat-ping-avg')) document.getElementById('stat-ping-avg').innerText = `${avgMs} ms`;
+    if (document.getElementById('stat-ping-minmax')) document.getElementById('stat-ping-minmax').innerText = `Min: ${minMs === Infinity ? 0 : minMs}ms / Max: ${maxMs === -1 ? 0 : maxMs}ms`;
+    
+    const uptimeEl = document.getElementById('stat-uptime-percent');
+    if (uptimeEl) {
+        uptimeEl.innerText = `${uptimePercent}%`;
+        uptimeEl.className = uptimePercent >= 98 ? 'fs-4 fw-bold text-success' : (uptimePercent >= 90 ? 'fs-4 fw-bold text-warning' : 'fs-4 fw-bold text-danger');
+    }
+
+    if (document.getElementById('stat-online-time')) document.getElementById('stat-online-time').innerText = formatTime(onlineMinutes);
+    if (document.getElementById('stat-offline-time')) document.getElementById('stat-offline-time').innerText = `Caído: ${formatTime(offlineMinutes)}`;
+    if (document.getElementById('stat-loss-percent')) document.getElementById('stat-loss-percent').innerText = `${lossPercent}%`;
+    if (document.getElementById('stat-total-probes')) document.getElementById('stat-total-probes').innerText = `Muestras BD: ${totalProbes}`;
 }
 
 function renderEquipoHistChart() {
-    if(chartEquipoPingHist) chartEquipoPingHist.destroy();
+    if (chartEquipoPingHist) chartEquipoPingHist.destroy();
 
     const data = equipoHistoricoDataCache;
+    calculateEquipoStats(data);
+
     const labels = data.map(d => d.hora_completa.replace(' ', 'T'));
     const pings = data.map(d => parseInt(d.ms));
 
@@ -168,32 +232,20 @@ function renderEquipoHistChart() {
     });
 }
 
-// Redefinir la navegación para limpiar los intervalos
-const originalLoadViewEquipos = window.loadView;
-window.loadView = function(viewName, params = null) {
-    if(equipoPingInterval) {
+window.clearEquiposDetallesIntervals = function() {
+    if (equipoPingInterval) {
         clearInterval(equipoPingInterval);
         equipoPingInterval = null;
     }
-    originalLoadViewEquipos(viewName, params);
-}
+};
 
-// Ampliación de Pantalla Completa para Equipos
-const originalOpenChartFullScreen = window.openChartFullScreen;
-window.openChartFullScreen = function(chartType, title) {
-    if(chartType !== 'eq_historico') {
-        // Delegar a la función original de MikroTik si existe
-        if(typeof originalOpenChartFullScreen === 'function') {
-            originalOpenChartFullScreen(chartType, title);
-        }
-        return;
-    }
-
-    if(!chartEquipoPingHist) return;
+window.openChartFullScreen = function (chartType, title) {
+    if (chartType !== 'eq_historico') return;
+    if (!chartEquipoPingHist) return;
 
     document.getElementById('fs-chart-title').innerText = title;
-    
-    if(chartFullScreenInstance) {
+
+    if (typeof chartFullScreenInstance !== 'undefined' && chartFullScreenInstance) {
         chartFullScreenInstance.destroy();
     }
 
@@ -201,7 +253,7 @@ window.openChartFullScreen = function(chartType, title) {
     let newOptions = Object.assign({}, chartEquipoPingHist.config.options);
     newOptions.responsive = true;
     newOptions.maintainAspectRatio = false;
-    
+
     let newData = {
         labels: chartEquipoPingHist.data.labels.slice(),
         datasets: chartEquipoPingHist.data.datasets.map(ds => ({
@@ -213,7 +265,7 @@ window.openChartFullScreen = function(chartType, title) {
             tension: ds.tension
         }))
     };
-    
+
     chartFullScreenInstance = new Chart(ctx, {
         type: chartEquipoPingHist.config.type,
         data: newData,
@@ -222,4 +274,4 @@ window.openChartFullScreen = function(chartType, title) {
 
     let modal = new bootstrap.Modal(document.getElementById('modalChartFullScreen'));
     modal.show();
-}
+};

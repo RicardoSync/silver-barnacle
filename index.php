@@ -45,14 +45,9 @@ if (!isset($_SESSION['user_id'])) {
                 <li>
                     <small class="text-uppercase fw-bold px-3 pt-3 pb-1 d-block text-muted" style="font-size: 10px; letter-spacing: 1px; color: #95a5a6 !important;">Navegación</small>
                 </li>
-                <li class="active">
-                    <a href="#" data-view="dashboard">
-                        <i class="bi bi-speedometer2 me-2"></i> Inicio
-                    </a>
-                </li>
                 <li>
-                    <a href="#" data-view="noc">
-                        <i class="bi bi-tv me-2"></i> Modo NOC
+                    <a href="#" data-view="dashboard" class="active">
+                        <i class="bi bi-speedometer2 me-2"></i> Inicio
                     </a>
                 </li>
 
@@ -87,6 +82,16 @@ if (!isset($_SESSION['user_id'])) {
                 <li>
                     <a href="#" data-view="topologia">
                         <i class="bi bi-diagram-3-fill me-2"></i> Topología
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="servicios">
+                        <i class="bi bi-globe me-2"></i> DNS y Servicios
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="traceroute">
+                        <i class="bi bi-signpost-split me-2"></i> Traceroute
                     </a>
                 </li>
 
@@ -183,6 +188,8 @@ if (!isset($_SESSION['user_id'])) {
 <script src="js/analiticas.js?v=<?php echo time(); ?>"></script>
 <script src="js/noc.js?v=<?php echo time(); ?>"></script>
 <script src="js/topologia.js?v=<?php echo time(); ?>"></script>
+<script src="js/servicios.js?v=<?php echo time(); ?>"></script>
+<script src="js/traceroute.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

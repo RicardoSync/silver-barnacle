@@ -77,6 +77,38 @@ $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
   <!-- PESTAÑA: ESTADÍSTICAS (HISTÓRICO) -->
   <div class="tab-pane fade" id="tab-historico" role="tabpanel">
+      <!-- Tarjetas KPI de Resumen de Disponibilidad y Latencia (24h) -->
+      <div class="row g-3 mb-4" id="kpi-historico-equipo-wrapper">
+          <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3 h-100 bg-white">
+                  <small class="text-muted text-uppercase fw-bold" style="font-size: 10px;">Promedio de Ping</small>
+                  <div class="fs-4 fw-bold text-primary mt-1" id="stat-ping-avg">-- ms</div>
+                  <small class="text-muted" style="font-size: 10px;" id="stat-ping-minmax">Min: -- / Max: --</small>
+              </div>
+          </div>
+          <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3 h-100 bg-white">
+                  <small class="text-muted text-uppercase fw-bold" style="font-size: 10px;">Disponibilidad (SLA)</small>
+                  <div class="fs-4 fw-bold text-success mt-1" id="stat-uptime-percent">-- %</div>
+                  <small class="text-muted" style="font-size: 10px;" id="stat-uptime-status">Últimas 24h</small>
+              </div>
+          </div>
+          <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3 h-100 bg-white">
+                  <small class="text-muted text-uppercase fw-bold" style="font-size: 10px;">Tiempo En Línea</small>
+                  <div class="fs-5 fw-bold text-dark mt-1" id="stat-online-time">--</div>
+                  <small class="text-danger fw-semibold" style="font-size: 10px;" id="stat-offline-time">Caído: --</small>
+              </div>
+          </div>
+          <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3 h-100 bg-white">
+                  <small class="text-muted text-uppercase fw-bold" style="font-size: 10px;">Pérdida de Paquetes</small>
+                  <div class="fs-4 fw-bold text-secondary mt-1" id="stat-loss-percent">-- %</div>
+                  <small class="text-muted" style="font-size: 10px;" id="stat-total-probes">Muestras: --</small>
+              </div>
+          </div>
+      </div>
+
       <div class="row mb-4">
           <div class="col-12">
               <div class="card shadow-sm">

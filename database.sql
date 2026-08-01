@@ -180,3 +180,30 @@ CREATE TABLE IF NOT EXISTS topologia_enlaces (
     FOREIGN KEY (nodo_origen_id) REFERENCES topologia_nodos(id) ON DELETE CASCADE,
     FOREIGN KEY (nodo_destino_id) REFERENCES topologia_nodos(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- 15. TABLA DE SERVICIOS MONITOREADOS (DNS, HTTP, PUERTOS TCP)
+CREATE TABLE IF NOT EXISTS servicios_monitoreo (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    tipo ENUM('dns', 'http', 'puerto') NOT NULL,
+    target VARCHAR(255) NOT NULL,
+    puerto INT NULL,
+    umbral_ms INT DEFAULT 300,
+    estado BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 16. TABLA HISTÓRICA DE CHEQUEOS DE SERVICIOS
+CREATE TABLE IF NOT EXISTS historico_servicios (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    servicio_id INT NOT NULL,
+    ms INT NOT NULL,
+    codigo_http INT NULL,
+    ip_resuelta VARCHAR(45) NULL,
+    estado_check ENUM('online', 'lento', 'offline') NOT NULL,
+    detalle TEXT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (servicio_id) REFERENCES servicios_monitoreo(id) ON DELETE CASCADE,
+    INDEX idx_servicio_fecha (servicio_id, fecha_registro)
+) ENGINE=InnoDB;

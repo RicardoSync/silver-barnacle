@@ -75,6 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.loadView = function (viewName, params = null) {
         showLoader();
 
+        if (typeof window.clearDashboardIntervals === 'function') {
+            window.clearDashboardIntervals();
+        }
+        if (typeof window.clearEquiposDetallesIntervals === 'function') {
+            window.clearEquiposDetallesIntervals();
+        }
+
         let url = 'views/' + viewName + '.php';
         if (params) {
             const queryParams = new URLSearchParams(params).toString();
@@ -84,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(url)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Error de red');
+                    throw new Error('Código HTTP ' + response.status);
                 }
                 return response.text();
             })
@@ -94,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideLoader();
             })
             .catch(error => {
-                mainContainer.innerHTML = '<div class="alert alert-danger">Error al cargar la vista solicitada.</div>';
-                console.error('Error:', error);
+                mainContainer.innerHTML = '<div class="alert alert-danger">Error al cargar la vista solicitada (' + error.message + ').</div>';
+                console.error('Error al cargar vista:', error);
                 hideLoader();
             });
     }
@@ -156,6 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (viewName === 'topologia') {
             if (typeof initTopologiaModule === 'function') {
                 initTopologiaModule();
+            }
+        } else if (viewName === 'servicios') {
+            if (typeof initServiciosModule === 'function') {
+                initServiciosModule();
+            }
+        } else if (viewName === 'traceroute') {
+            if (typeof initTracerouteModule === 'function') {
+                initTracerouteModule();
             }
         } else {
             // Initialize Default DataTables for other views
