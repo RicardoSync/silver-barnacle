@@ -277,6 +277,8 @@ switch ($action) {
                             "status" => "success", 
                             "mikrotik_id" => $id,
                             "nombre" => $data['nombre'],
+                            "rx_bits" => $rxBits,
+                            "tx_bits" => $txBits,
                             "rx_mbps" => round($rxBits / 1000000, 2),
                             "tx_mbps" => round($txBits / 1000000, 2),
                             "timestamp" => date('H:i:s')
@@ -303,6 +305,8 @@ switch ($action) {
                     "status" => "success",
                     "mikrotik_id" => $id,
                     "nombre" => $data['nombre'],
+                    "rx_bits" => $rxBits,
+                    "tx_bits" => $txBits,
                     "rx_mbps" => round($rxBits / 1000000, 2),
                     "tx_mbps" => round($txBits / 1000000, 2),
                     "timestamp" => date('H:i:s')

@@ -16,9 +16,7 @@ $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
   <li class="nav-item" role="presentation">
     <button class="nav-link active fw-bold" id="envivo-tab" data-bs-toggle="tab" data-bs-target="#tab-envivo" type="button" role="tab"><i class="bi bi-broadcast"></i> En Vivo</button>
   </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link fw-bold" id="historico-tab" data-bs-toggle="tab" data-bs-target="#tab-historico" type="button" role="tab" onclick="loadHistorico()"><i class="bi bi-bar-chart-fill"></i> Estadísticas</button>
-  </li>
+
   <li class="nav-item" role="presentation">
     <button class="nav-link fw-bold" id="logs-tab" data-bs-toggle="tab" data-bs-target="#tab-logs" type="button" role="tab"><i class="bi bi-journal-text"></i> Logs</button>
   </li>
@@ -152,44 +150,7 @@ $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
       </div>
   </div>
 
-  <!-- PESTAÑA: ESTADÍSTICAS (HISTÓRICO) -->
-  <div class="tab-pane fade" id="tab-historico" role="tabpanel">
-      <div class="row mb-4">
-          <div class="col-12">
-              <div class="card shadow-sm">
-                  <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-                      <span><i class="bi bi-cpu"></i> Uso de Recursos (24h)</span>
-                      <button class="btn btn-sm btn-outline-secondary" onclick="openChartFullScreen('recursos', 'Uso de Recursos (24h)')"><i class="bi bi-arrows-fullscreen"></i> Ampliar</button>
-                  </div>
-                  <div class="card-body">
-                      <canvas id="chartHistRecursos" height="80"></canvas>
-                  </div>
-              </div>
-          </div>
-      </div>
-      <div class="row mb-4">
-          <div class="col-12">
-              <div class="card shadow-sm">
-                  <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-                      <span><i class="bi bi-activity"></i> Latencia Promedio (24h)</span>
-                      <button class="btn btn-sm btn-outline-secondary" onclick="openChartFullScreen('ping', 'Latencia Promedio (24h)')"><i class="bi bi-arrows-fullscreen"></i> Ampliar</button>
-                  </div>
-                  <div class="card-body">
-                      <canvas id="chartHistPing" height="80"></canvas>
-                  </div>
-              </div>
-          </div>
-      </div>
-      <div class="row mb-2">
-          <div class="col-12">
-              <h5 class="fw-bold text-secondary"><i class="bi bi-graph-up"></i> Tráfico de Interfaces (24h)</h5>
-              <hr>
-          </div>
-      </div>
-      <div class="row" id="hist-traffic-container">
-          <!-- Las gráficas se generarán aquí dinámicamente -->
-      </div>
-  </div>
+
 
   <!-- PESTAÑA: LOGS -->
   <div class="tab-pane fade" id="tab-logs" role="tabpanel">

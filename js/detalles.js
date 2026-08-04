@@ -1,8 +1,5 @@
 let chartGoogle, chartServer, chartTraffic;
-let chartHistRecursos, chartHistPing;
-let chartHistTraficoArr = [];
 let pingInterval, trafficInterval;
-let historicoDataCache = null;
 const MAX_DATA_POINTS = 30;
 
 function initDetallesModule() {
@@ -145,15 +142,8 @@ function updatePings(id) {
 }
 
 window.refreshDetalles = function() {
-    historicoDataCache = null; // Forzar recarga del histórico
-    
     // Reiniciar los componentes de la vista
     initDetallesModule();
-    
-    // Si la pestaña de estadísticas está activa, recargarla
-    if(document.getElementById('historico-tab').classList.contains('active')) {
-        loadHistorico();
-    }
 }
 
 // Global actions
@@ -288,156 +278,7 @@ window.stopTrafficMonitor = function() {
     }
 }
 
-// ==============================
-// HISTORICAL CHARTS LOGIC
-// ==============================
-window.loadHistorico = function() {
-    const id = document.getElementById('current_mikrotik_id').value;
-    if(historicoDataCache) return; // Ya lo cargamos una vez
 
-    Swal.fire({ title: 'Cargando estadísticas', text: 'Obteniendo datos de las últimas 24h...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-    fetch('controllers/MikrotikController.php?action=api_historico_graficas&id=' + id)
-    .then(res => res.json())
-    .then(data => {
-        Swal.close();
-        if(data.status === 'success') {
-            historicoDataCache = data.data;
-            renderHistRecursos();
-            renderHistPing();
-            renderHistTraffic();
-        } else {
-            Swal.fire('Error', 'No se pudo cargar el histórico', 'error');
-        }
-    }).catch(e => Swal.fire('Error', 'Fallo de red', 'error'));
-}
-
-const chartTimeScale = {
-    type: 'time',
-    time: {
-        tooltipFormat: 'HH:mm',
-        displayFormats: { hour: 'HH:mm', minute: 'HH:mm' }
-    }
-};
-
-const chartZoomOptions = {
-    pan: { enabled: true, mode: 'x' },
-    zoom: { wheel: { enabled: true }, drag: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
-};
-
-function renderHistRecursos() {
-    const data = historicoDataCache.recursos;
-    const labels = data.map(d => d.hora_completa.replace(' ', 'T'));
-    const cpu = data.map(d => parseInt(d.cpu_uso));
-    const ram = data.map(d => {
-        const t = parseInt(d.ram_total);
-        const l = parseInt(d.ram_libre);
-        return t > 0 ? ((t - l) / t * 100).toFixed(2) : 0; // % de RAM usada
-    });
-
-    const ctx = document.getElementById('chartHistRecursos').getContext('2d');
-    chartHistRecursos = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Uso de CPU (%)', data: cpu, borderColor: 'rgb(220, 53, 69)', backgroundColor: 'rgba(220, 53, 69, 0.1)', fill: true, tension: 0.1 },
-                { label: 'Uso de RAM (%)', data: ram, borderColor: 'rgb(13, 110, 253)', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.1 }
-            ]
-        },
-        options: { 
-            responsive: true, 
-            scales: { x: chartTimeScale, y: { beginAtZero: true, max: 100 } },
-            plugins: { zoom: chartZoomOptions }
-        }
-    });
-}
-
-function renderHistPing() {
-    const pings = historicoDataCache.pings;
-    const labelsGoogle = pings.google ? pings.google.map(d => d.hora_completa.replace(' ', 'T')) : [];
-    const dataGoogle = pings.google ? pings.google.map(d => parseInt(d.ms)) : [];
-    const labelsServidor = pings.servidor ? pings.servidor.map(d => d.hora_completa.replace(' ', 'T')) : [];
-    const dataServidor = pings.servidor ? pings.servidor.map(d => parseInt(d.ms)) : [];
-
-    // Usaremos los labels de google como base asumiendo que ambos CRON corrieron juntos
-    const labels = labelsGoogle.length > labelsServidor.length ? labelsGoogle : labelsServidor;
-
-    const ctx = document.getElementById('chartHistPing').getContext('2d');
-    chartHistPing = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Google (ms)', data: dataGoogle, borderColor: 'rgb(255, 193, 7)', fill: false, tension: 0.1 },
-                { label: 'Servidor (ms)', data: dataServidor, borderColor: 'rgb(25, 135, 84)', fill: false, tension: 0.1 }
-            ]
-        },
-        options: { 
-            responsive: true, 
-            scales: { x: chartTimeScale, y: { beginAtZero: true } },
-            plugins: { zoom: chartZoomOptions }
-        }
-    });
-}
-
-window.renderHistTraffic = function() {
-    const container = document.getElementById('hist-traffic-container');
-    container.innerHTML = '';
-    
-    // Destroy previous charts
-    chartHistTraficoArr.forEach(c => c.destroy());
-    chartHistTraficoArr = [];
-
-    if(!historicoDataCache.trafico) return;
-
-    let index = 0;
-    for (let intf in historicoDataCache.trafico) {
-        const data = historicoDataCache.trafico[intf];
-        const labels = data.map(d => d.hora_completa.replace(' ', 'T'));
-        const rx = data.map(d => parseInt(d.rx) / 1000000); 
-        const tx = data.map(d => parseInt(d.tx) / 1000000);
-        
-        const canvasId = 'chartHistTrafico_' + index;
-        
-        // Create HTML
-        const col = document.createElement('div');
-        col.className = 'col-md-6 mb-4';
-        col.innerHTML = `
-            <div class="card shadow-sm">
-                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-ethernet"></i> ${intf}</span>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="openChartFullScreen('traffic_${index}', 'Tráfico de Interfaces: ${intf}')"><i class="bi bi-arrows-fullscreen"></i> Ampliar</button>
-                </div>
-                <div class="card-body">
-                    <canvas id="${canvasId}" height="100"></canvas>
-                </div>
-            </div>
-        `;
-        container.appendChild(col);
-
-        // Init Chart
-        const ctx = document.getElementById(canvasId).getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: 'Descarga (Mbps)', data: rx, borderColor: 'rgb(25, 135, 84)', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.1 },
-                    { label: 'Subida (Mbps)', data: tx, borderColor: 'rgb(13, 110, 253)', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.1 }
-                ]
-            },
-            options: { 
-                responsive: true, 
-                scales: { x: chartTimeScale, y: { beginAtZero: true } },
-                plugins: { zoom: chartZoomOptions }
-            }
-        });
-        
-        chartHistTraficoArr.push(chart);
-        index++;
-    }
-}
 
 // Clear interval when navigating away
 const originalLoadView = window.loadView;
@@ -449,52 +290,7 @@ window.loadView = function(viewName, params = null) {
 
 let chartFullScreenInstance = null;
 
-window.openChartFullScreen = function(chartType, title) {
-    let sourceChart = null;
-    if (chartType === 'recursos') sourceChart = chartHistRecursos;
-    else if (chartType === 'ping') sourceChart = chartHistPing;
-    else if (chartType.startsWith('traffic_')) {
-        let idx = parseInt(chartType.split('_')[1]);
-        sourceChart = chartHistTraficoArr[idx];
-    }
 
-    if(!sourceChart) return;
-
-    document.getElementById('fs-chart-title').innerText = title;
-    
-    if(chartFullScreenInstance) {
-        chartFullScreenInstance.destroy();
-    }
-
-    const ctx = document.getElementById('chartFullScreenCanvas').getContext('2d');
-    
-    // Configurar la nueva grafica combinando opciones
-    let newOptions = Object.assign({}, sourceChart.config.options);
-    newOptions.responsive = true;
-    newOptions.maintainAspectRatio = false;
-    
-    // Copia manual de data para evitar problemas circulares o de contexto
-    let newData = {
-        labels: sourceChart.data.labels.slice(),
-        datasets: sourceChart.data.datasets.map(ds => ({
-            label: ds.label,
-            data: ds.data.slice(),
-            borderColor: ds.borderColor,
-            backgroundColor: ds.backgroundColor,
-            fill: ds.fill,
-            tension: ds.tension
-        }))
-    };
-    
-    chartFullScreenInstance = new Chart(ctx, {
-        type: sourceChart.config.type,
-        data: newData,
-        options: newOptions
-    });
-
-    let modal = new bootstrap.Modal(document.getElementById('modalChartFullScreen'));
-    modal.show();
-}
 
 window.closeChartFullScreen = function() {
     if(chartFullScreenInstance) {
