@@ -24,6 +24,9 @@ echo ""
 echo "--> Carpeta seleccionada: $TARGET_DIR"
 cd "$TARGET_DIR"
 
+# Evitar el error de "dubious ownership" agregando el directorio a safe.directory
+git config --global --add safe.directory "$TARGET_DIR" 2>/dev/null || true
+
 # 2. Inicializar Git y vincular origin si no existe
 if [ ! -d ".git" ]; then
     echo "--> Inicializando repositorio Git en la carpeta..."
