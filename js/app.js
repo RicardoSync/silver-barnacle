@@ -417,6 +417,244 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // === Sistema de Clima Local con Open-Meteo ===
+    const WMO_CODES = {
+        0: { icon: 'bi-sun-fill', desc: 'despejado', color: 'text-warning' },
+        1: { icon: 'bi-cloud-sun-fill', desc: 'despejado parcial', color: 'text-secondary' },
+        2: { icon: 'bi-cloud-sun-fill', desc: 'nublado parcial', color: 'text-secondary' },
+        3: { icon: 'bi-cloud-fill', desc: 'nublado', color: 'text-secondary' },
+        45: { icon: 'bi-cloud-fog-fill', desc: 'niebla', color: 'text-secondary' },
+        48: { icon: 'bi-cloud-fog-fill', desc: 'niebla racha', color: 'text-secondary' },
+        51: { icon: 'bi-cloud-drizzle-fill', desc: 'llovizna ligera', color: 'text-info' },
+        53: { icon: 'bi-cloud-drizzle-fill', desc: 'llovizna moderada', color: 'text-info' },
+        55: { icon: 'bi-cloud-drizzle-fill', desc: 'llovizna densa', color: 'text-info' },
+        61: { icon: 'bi-cloud-rain-fill', desc: 'lluvia ligera', color: 'text-info' },
+        63: { icon: 'bi-cloud-rain-fill', desc: 'lluvia moderada', color: 'text-info' },
+        65: { icon: 'bi-cloud-rain-heavy-fill', desc: 'lluvia fuerte', color: 'text-info' },
+        71: { icon: 'bi-cloud-snow-fill', desc: 'nieve ligera', color: 'text-primary' },
+        73: { icon: 'bi-cloud-snow-fill', desc: 'nieve moderada', color: 'text-primary' },
+        75: { icon: 'bi-cloud-snow-fill', desc: 'nieve fuerte', color: 'text-primary' },
+        77: { icon: 'bi-cloud-hail', desc: 'granizo', color: 'text-primary' },
+        80: { icon: 'bi-cloud-rain-fill', desc: 'chubascos ligeros', color: 'text-info' },
+        81: { icon: 'bi-cloud-rain-fill', desc: 'chubascos moderados', color: 'text-info' },
+        82: { icon: 'bi-cloud-rain-heavy-fill', desc: 'chubascos violentos', color: 'text-info' },
+        95: { icon: 'bi-cloud-lightning-rain-fill', desc: 'tormenta eléctrica', color: 'text-warning' },
+        96: { icon: 'bi-cloud-lightning-rain-fill', desc: 'tormenta con granizo', color: 'text-warning' },
+        99: { icon: 'bi-cloud-lightning-rain-fill', desc: 'tormenta con granizo fuerte', color: 'text-warning' }
+    };
+
+    function getWeatherMeta(code, isDay = 1) {
+        let meta = WMO_CODES[code] || { icon: 'bi-cloud-fill', desc: 'nublado', color: 'text-secondary' };
+        if (isDay === 0) {
+            if (meta.icon === 'bi-sun-fill') {
+                return { icon: 'bi-moon-stars-fill', desc: 'despejado', color: 'text-primary' };
+            } else if (meta.icon === 'bi-cloud-sun-fill') {
+                return { icon: 'bi-cloud-moon-fill', desc: 'nublado parcial', color: 'text-primary' };
+            }
+        }
+        return meta;
+    }
+    window.getWeatherMeta = getWeatherMeta;
+
+    window.requestWeatherLocation = function (force = false) {
+        const loadingEl = document.getElementById('weather-loading');
+        const contentEl = document.getElementById('weather-content');
+        const errorEl = document.getElementById('weather-error');
+        const dropdownLink = document.getElementById('weatherDropdown');
+
+        if (dropdownLink) {
+            dropdownLink.style.display = 'flex';
+        }
+
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (contentEl) contentEl.style.display = 'none';
+        if (errorEl) errorEl.style.display = 'none';
+
+        if (!navigator.geolocation) {
+            showWeatherError('Geolocalización no soportada.');
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 600000
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(4);
+                const lon = position.coords.longitude.toFixed(4);
+                localStorage.setItem('weather_coords', JSON.stringify({ lat, lon }));
+                fetchWeatherData(lat, lon);
+            },
+            (error) => {
+                console.warn('Error al obtener ubicación:', error);
+                // Si ya tenemos coordenadas guardadas, usarlas como fallback
+                const cachedCoords = localStorage.getItem('weather_coords');
+                if (cachedCoords) {
+                    const { lat, lon } = JSON.parse(cachedCoords);
+                    fetchWeatherData(lat, lon);
+                } else if (force) {
+                    showWeatherError('No se pudo acceder a tu ubicación.');
+                } else {
+                    // Si no fue forzado y falló, ocultamos el widget silenciosamente
+                    if (dropdownLink) dropdownLink.style.display = 'none';
+                }
+            },
+            options
+        );
+    };
+
+    function showWeatherError(msg) {
+        const loadingEl = document.getElementById('weather-loading');
+        const contentEl = document.getElementById('weather-content');
+        const errorEl = document.getElementById('weather-error');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (contentEl) contentEl.style.display = 'none';
+        if (errorEl) {
+            errorEl.style.display = 'block';
+            const span = errorEl.querySelector('span');
+            if (span) span.innerText = msg;
+        }
+    }
+
+    function fetchWeatherData(lat, lon) {
+        const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&forecast_days=1`;
+
+        Promise.all([
+            fetch(weatherUrl).then(r => { if (!r.ok) throw new Error('API clima error'); return r.json(); }),
+            fetch(nominatimUrl, { headers: { 'Accept-Language': 'es' } }).then(r => r.json()).catch(() => null)
+        ])
+        .then(([weatherData, geoData]) => {
+            let locationName = `Lat: ${lat}, Lon: ${lon}`;
+            if (geoData && geoData.address) {
+                locationName = geoData.address.city || geoData.address.town || geoData.address.village || geoData.address.municipality || geoData.address.county || locationName;
+            }
+
+            const cacheData = {
+                timestamp: Date.now(),
+                weather: weatherData,
+                location: locationName
+            };
+            localStorage.setItem('weather_cache', JSON.stringify(cacheData));
+            renderWeather(weatherData, locationName);
+        })
+        .catch(err => {
+            console.error('Error al consultar clima:', err);
+            showWeatherError('Error de red al consultar clima.');
+        });
+    }
+
+    function renderWeather(weatherData, locationName) {
+        const current = weatherData.current;
+        const meta = getWeatherMeta(current.weather_code, current.is_day);
+
+        // Actualizar navbar widget
+        const iconNav = document.getElementById('weather-icon-nav');
+        const tempNav = document.getElementById('weather-temp-nav');
+        const dropdownLink = document.getElementById('weatherDropdown');
+
+        if (dropdownLink) dropdownLink.style.display = 'flex';
+        
+        if (iconNav) {
+            iconNav.className = `bi ${meta.icon} ${meta.color} me-2`;
+        }
+        if (tempNav) {
+            tempNav.innerText = `${Math.round(current.temperature_2m)}°C`;
+        }
+
+        // Actualizar dropdown detallado
+        const loadingEl = document.getElementById('weather-loading');
+        const contentEl = document.getElementById('weather-content');
+        const errorEl = document.getElementById('weather-error');
+
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (errorEl) errorEl.style.display = 'none';
+        if (contentEl) contentEl.style.display = 'block';
+
+        const locEl = document.getElementById('weather-location');
+        const largeIconEl = document.getElementById('weather-large-icon');
+        const tempDetailEl = document.getElementById('weather-temp-detail');
+        const descEl = document.getElementById('weather-desc');
+        const windEl = document.getElementById('weather-wind');
+        const humEl = document.getElementById('weather-humidity');
+
+        if (locEl) locEl.innerText = locationName;
+        if (largeIconEl) {
+            largeIconEl.className = `bi ${meta.icon} ${meta.color} fs-1 me-3`;
+        }
+        if (tempDetailEl) tempDetailEl.innerText = `${Math.round(current.temperature_2m)}°C`;
+        if (descEl) descEl.innerText = meta.desc;
+        if (windEl) windEl.innerText = `${current.wind_speed_10m.toFixed(1)} km/h`;
+        if (humEl) humEl.innerText = `${current.relative_humidity_2m}%`;
+
+        // Renderizar pronóstico por horas (siguientes 4 horas)
+        const hourlyEl = document.getElementById('weather-hourly-forecast');
+        if (hourlyEl) {
+            hourlyEl.innerHTML = '';
+            const hourly = weatherData.hourly;
+            
+            const nowIso = new Date().toISOString().substring(0, 13) + ':00';
+            let startIndex = hourly.time.findIndex(t => t.startsWith(nowIso.substring(0, 13)));
+            if (startIndex === -1) startIndex = 0;
+            
+            for (let i = 1; i <= 4; i++) {
+                const index = (startIndex + i) % hourly.time.length;
+                const timeStr = hourly.time[index];
+                const timeObj = new Date(timeStr);
+                const hourFormatted = timeObj.toLocaleTimeString('es-MX', { hour: '2-digit', hour12: false }) + 'h';
+                const temp = Math.round(hourly.temperature_2m[index]);
+                const code = hourly.weather_code[index];
+                const hourIsDay = timeObj.getHours() >= 6 && timeObj.getHours() < 19 ? 1 : 0;
+                const hourMeta = getWeatherMeta(code, hourIsDay);
+
+                const itemHtml = `
+                    <div class="weather-hourly-item text-center">
+                        <span class="weather-hourly-time">${hourFormatted}</span>
+                        <i class="bi ${hourMeta.icon} ${hourMeta.color} weather-hourly-icon"></i>
+                        <span class="weather-hourly-temp">${temp}°C</span>
+                    </div>
+                `;
+                hourlyEl.insertAdjacentHTML('beforeend', itemHtml);
+            }
+        }
+
+        // Si existe la función del dashboard para actualizar su tarjeta, llamarla
+        if (typeof window.updateDashboardWeatherCard === 'function') {
+            window.updateDashboardWeatherCard(weatherData, locationName);
+        }
+    }
+
+    window.initWeatherSystem = function() {
+        const cached = localStorage.getItem('weather_cache');
+        if (cached) {
+            try {
+                const data = JSON.parse(cached);
+                if (Date.now() - data.timestamp < 900000) {
+                    renderWeather(data.weather, data.location);
+                    return;
+                }
+            } catch (e) {
+                console.error('Error al leer caché del clima:', e);
+            }
+        }
+
+        const cachedCoords = localStorage.getItem('weather_coords');
+        if (cachedCoords) {
+            try {
+                const { lat, lon } = JSON.parse(cachedCoords);
+                fetchWeatherData(lat, lon);
+                return;
+            } catch (e) {}
+        }
+
+        window.requestWeatherLocation(false);
+    };
+
+    window.initWeatherSystem();
+
     initAlertPolling();
 
     // Event listener nativo de Pantalla Completa (Ocultar Sidebar en Fullscreen)

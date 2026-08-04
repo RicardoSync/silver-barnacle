@@ -1317,5 +1317,85 @@ body.is-fullscreen #sidebarCollapse {
     font-weight: 600;
 }
 
+/* Weather Widget Styles */
+#weatherDropdown {
+    transition: transform 0.2s ease, color 0.2s ease;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+#weatherDropdown:hover {
+    transform: translateY(-1px);
+    color: var(--primary-color) !important;
+    background-color: #f1f3f5;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+#weather-dropdown-menu {
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12) !important;
+    animation: fadeInWeather 0.25s ease;
+}
+
+@keyframes fadeInWeather {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.weather-hourly-item {
+    flex: 1;
+    padding: 6px 4px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.weather-hourly-item:hover {
+    background-color: #f8f9fa;
+}
+
+.weather-hourly-time {
+    font-size: 0.7rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.weather-hourly-icon {
+    font-size: 1.15rem;
+    margin: 4px 0;
+    display: block;
+}
+
+.weather-hourly-temp {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Dashboard Weather Card */
+.dashboard-weather-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-weather-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08) !important;
+}
+
+#dash-weather-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
 
 

@@ -168,6 +168,58 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="bi bi-speedometer2 me-1"></i> Speedtest
                     </button>
 
+                    <!-- Weather Widget -->
+                    <div class="dropdown me-3" id="weatherDropdownWrapper">
+                        <a href="#" class="text-secondary d-flex align-items-center text-decoration-none" id="weatherDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="display: none;">
+                            <span id="weather-icon-nav" class="me-2 fs-5"></span>
+                            <span id="weather-temp-nav" class="fw-bold" style="font-size: 0.9rem;">--°C</span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end shadow p-3" aria-labelledby="weatherDropdown" style="width: 320px; border: none; border-radius: 12px;" id="weather-dropdown-menu">
+                            <div class="text-center py-3" id="weather-loading">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <span class="ms-2 text-muted small">Detectando clima...</span>
+                            </div>
+                            <div id="weather-content" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                    <span class="fw-bold text-dark"><i class="bi bi-cloud-sun me-1"></i> Clima Local</span>
+                                    <small class="text-muted" id="weather-location" style="font-size: 0.75rem;">Detectando ubicación...</small>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between my-3">
+                                    <div class="d-flex align-items-center">
+                                        <span id="weather-large-icon" class="fs-1 me-3"></span>
+                                        <div>
+                                            <h2 class="mb-0 fw-bold" id="weather-temp-detail">--°C</h2>
+                                            <small class="text-muted text-capitalize" id="weather-desc">--</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row text-center border-top pt-2 mt-2 g-2">
+                                    <div class="col-6 border-end">
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="bi bi-wind"></i> Viento</small>
+                                        <span class="fw-bold text-dark" id="weather-wind" style="font-size: 0.85rem;">-- km/h</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;"><i class="bi bi-droplet-half"></i> Humedad</small>
+                                        <span class="fw-bold text-dark" id="weather-humidity" style="font-size: 0.85rem;">--%</span>
+                                    </div>
+                                </div>
+                                <div class="mt-3 border-top pt-2">
+                                    <small class="text-muted fw-bold d-block mb-2" style="font-size: 0.75rem;">Pronóstico Próximas Horas</small>
+                                    <div class="d-flex justify-content-between text-center" id="weather-hourly-forecast">
+                                        <!-- Horas -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="weather-error" style="display: none;" class="text-center py-2 text-danger small">
+                                <i class="bi bi-geo-alt-fill d-block fs-4 mb-1"></i>
+                                <span>Permiso de ubicación denegado o no disponible.</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2 w-100" onclick="window.requestWeatherLocation(true)">
+                                    Reintentar / Activar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Notification Bell -->
                     <div class="dropdown me-3">
                         <a href="#" class="text-secondary position-relative text-decoration-none" id="bellDropdown" data-bs-toggle="dropdown" aria-expanded="false">

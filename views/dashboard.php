@@ -83,8 +83,30 @@
         </div>
 
         <!-- Recursos del Servidor & Top MikroTiks -->
-        <div class="col-12 col-lg-4">
-            <div class="card border-0 shadow-sm h-100">
+        <div class="col-12 col-lg-4 d-flex flex-column gap-3">
+            <!-- Weather Card -->
+            <div class="card border-0 shadow-sm dashboard-weather-card" id="dashboard-weather-card-element" style="display: none;">
+                <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <span id="dash-weather-icon" class="me-3"></span>
+                        <div>
+                            <h4 class="mb-0 fw-bold" id="dash-weather-temp">--°C</h4>
+                            <small class="text-muted text-capitalize" id="dash-weather-desc">Detectando clima...</small>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted fw-bold d-block" id="dash-weather-location" style="font-size: 0.8rem;">Ubicación</small>
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            <span title="Humedad"><i class="bi bi-droplet-half me-1"></i><span id="dash-weather-humidity">--%</span></span>
+                            <span class="mx-2">|</span>
+                            <span title="Viento"><i class="bi bi-wind me-1"></i><span id="dash-weather-wind">-- km/h</span></span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recursos Card -->
+            <div class="card border-0 shadow-sm flex-grow-1">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
                     <h6 class="fw-bold mb-0 text-dark">
                         <i class="bi bi-cpu text-primary me-2"></i>Recursos y Carga de Red

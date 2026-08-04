@@ -31,10 +31,62 @@ function initDashboardModule() {
     if (trafficRealtimeInterval) clearInterval(trafficRealtimeInterval);
     // Refresh tráfico en tiempo real cada 1.2 segundos (1200 ms)
     trafficRealtimeInterval = setInterval(fetchRealtimePings, 1200);
+
+    // 4. Inicializar clima
+    initDashboardWeather();
 }
 
 window.initDashboardModule = initDashboardModule;
 window.loadDashboardData = loadDashboardData;
+
+// Lógica de clima del Dashboard
+function initDashboardWeather() {
+    const cached = localStorage.getItem('weather_cache');
+    if (cached) {
+        try {
+            const data = JSON.parse(cached);
+            window.updateDashboardWeatherCard(data.weather, data.location);
+            return;
+        } catch (e) {}
+    }
+    
+    // Si no hay caché, intentamos disparar la detección global del clima
+    if (typeof window.initWeatherSystem === 'function') {
+        window.initWeatherSystem();
+    }
+}
+
+window.updateDashboardWeatherCard = function(weatherData, locationName) {
+    const cardEl = document.getElementById('dashboard-weather-card-element');
+    if (!cardEl) return;
+
+    const current = weatherData.current;
+    if (!current) return;
+
+    // Mostrar la tarjeta
+    cardEl.style.display = 'block';
+
+    // Obtener traducción del código WMO
+    const meta = typeof window.getWeatherMeta === 'function'
+        ? window.getWeatherMeta(current.weather_code, current.is_day)
+        : { icon: 'bi-cloud-fill', desc: 'nublado', color: 'text-secondary' };
+
+    const tempEl = document.getElementById('dash-weather-temp');
+    const descEl = document.getElementById('dash-weather-desc');
+    const locEl = document.getElementById('dash-weather-location');
+    const iconEl = document.getElementById('dash-weather-icon');
+    const humEl = document.getElementById('dash-weather-humidity');
+    const windEl = document.getElementById('dash-weather-wind');
+
+    if (tempEl) tempEl.innerText = `${Math.round(current.temperature_2m)}°C`;
+    if (descEl) descEl.innerText = meta.desc;
+    if (locEl) locEl.innerText = locationName;
+    if (iconEl) {
+        iconEl.className = `bi ${meta.icon} ${meta.color} fs-1 me-3`;
+    }
+    if (humEl) humEl.innerText = `${current.relative_humidity_2m}%`;
+    if (windEl) windEl.innerText = `${current.wind_speed_10m.toFixed(1)} km/h`;
+};
 
 // Reloj Digital Header
 function startDigitalClock() {
