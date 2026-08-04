@@ -3,7 +3,7 @@
 # Terminar el script inmediatamente si ocurre un error inesperado
 set -e
 
-echo "=== ACTUALIZADOR DE ELISSA ==="
+echo "=== ACTUALIZADOR INTELIGENTE DE ELISSA ==="
 echo ""
 
 # 1. Preguntar la ruta de instalación con valor por defecto
@@ -24,26 +24,24 @@ echo ""
 echo "--> Carpeta seleccionada: $TARGET_DIR"
 cd "$TARGET_DIR"
 
-# Evitar el error de "dubious ownership" agregando el directorio a safe.directory
+# Evitar el error de "dubious ownership" (permisos de root vs www-data)
 git config --global --add safe.directory "$TARGET_DIR" 2>/dev/null || true
 
-# 2. Inicializar Git y vincular origin si no existe
+# 2. Inicializar Git si no existe
 if [ ! -d ".git" ]; then
     echo "--> Inicializando repositorio Git en la carpeta..."
     git init -b main
     git remote add origin https://github.com/RicardoSync/silver-barnacle.git
-    
-    # Hacer un commit temporal de los archivos locales para que Git reconozca la estructura
-    git add .
-    git commit -m "Estado previo a la actualización" --quiet || true
 fi
 
-# 3. Traer los últimos cambios desde GitHub y forzar alineación
+# 3. Sincronización inteligente (Sin commits ni configuración de usuario)
 echo "--> Descargando actualizaciones desde GitHub..."
 git fetch origin main
 
-echo "--> Sincronizando archivos con el repositorio remoto..."
-git checkout -B main origin/main
+echo "--> Sincronizando archivos forzosamente..."
+# Truco: Agregamos al índice para que Git los reconozca y no lance "untracked files error"
+git add . 
+# Forzamos a que todo sea exactamente igual a la versión de GitHub
 git reset --hard origin/main
 
 # 4. Actualizar dependencias de Composer
@@ -55,7 +53,7 @@ COMPOSER_ALLOW_SUPERUSER=1 composer update --no-interaction
 CONFIG_FILE="includes/config.php"
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "--> $CONFIG_FILE no existe. Creando a partir del archivo de ejemplo si existe..."
+    echo "--> Creando $CONFIG_FILE a partir del archivo de ejemplo..."
     if [ -f "includes/config.php.example" ]; then
         cp includes/config.php.example "$CONFIG_FILE"
     fi
@@ -74,6 +72,6 @@ echo "--> Ajustando permisos..."
 chown -R www-data:www-data "$TARGET_DIR"
 
 echo ""
-echo "=========================================="
-echo " ¡Elissa se ha actualizado correctamente! "
-echo "=========================================="
+echo "================================================="
+echo " ¡Elissa se ha actualizado de forma inteligente! "
+echo "================================================="
