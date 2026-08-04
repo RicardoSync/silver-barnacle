@@ -48,8 +48,10 @@ if (!isset($_SESSION['user_id'])) {
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header text-center">
-                <img src="assets/img/logo.png" alt="Logo" style="max-height: 50px; margin-bottom: 10px; margin-top: 15px;">
-                <h4 class="mb-0">Elissa</h4>
+                <div class="sidebar-logo-wrapper">
+                    <img src="assets/img/logo.png" alt="Elissa Logo" class="sidebar-logo-img">
+                </div>
+                <h4 class="mb-0 text-white fw-bold" style="letter-spacing: 0.5px;">Elissa</h4>
                 <small class="text-white-50 mt-1 d-block text-truncate px-2" title="<?php echo htmlspecialchars($_SESSION['user_rol']); ?>">
                     <i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($_SESSION['user_nombre']); ?>
                 </small>

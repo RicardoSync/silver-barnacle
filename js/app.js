@@ -305,11 +305,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     
-                    // Reproducir audios según corresponda
+    // Reproducir audios según corresponda
                     if (playAlarmSound) {
+                        try { alertAudio.currentTime = 0; } catch(e) {}
                         alertAudio.play().catch(e => console.log('Autoplay de alarma bloqueado por el navegador.'));
                     }
                     if (playRecoverySound) {
+                        try { recoveryAudio.currentTime = 0; } catch(e) {}
                         recoveryAudio.play().catch(e => console.log('Autoplay de recuperación bloqueado por el navegador.'));
                     }
                 }
@@ -373,6 +375,15 @@ document.addEventListener('DOMContentLoaded', () => {
             window.lastCaidasMasDeUnMinuto.forEach(c => {
                 visualAlertDismissedFor[c.id] = true;
             });
+        }
+        // Pausar y reiniciar los audios de alerta al silenciar la pantalla roja
+        if (alertAudio) {
+            alertAudio.pause();
+            alertAudio.currentTime = 0;
+        }
+        if (recoveryAudio) {
+            recoveryAudio.pause();
+            recoveryAudio.currentTime = 0;
         }
         ocultarAlertaVisual();
     };
