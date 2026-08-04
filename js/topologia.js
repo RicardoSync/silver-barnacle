@@ -215,20 +215,75 @@ function renderNodosHTML() {
         nodeEl.style.top = `${nodo.pos_y}px`;
         nodeEl.setAttribute('data-id', nodo.id);
 
-        const iconHtml = getNodoIconoHtml(nodo.tipo);
+        const iconClass = getNodoIconClass(nodo.tipo);
+
+        // Construcción del Tooltip / Popover de Detalles en Hover
+        let detailsHtml = '';
+        if (nodo.tipo_ref === 'mikrotik' && nodo.version_ros) {
+            const ramTotalMb = Math.round(nodo.ram_total / (1024 * 1024));
+            const ramLibreMb = Math.round(nodo.ram_libre / (1024 * 1024));
+            const ramUsoMb = ramTotalMb - ramLibreMb;
+            const ramUsoPct = Math.round((ramUsoMb / ramTotalMb) * 100);
+
+            detailsHtml = `
+                <div class="hover-stat-item"><strong>OS:</strong> RouterOS ${escapeHtml(nodo.version_ros)}</div>
+                <div class="hover-stat-item"><strong>Uptime:</strong> ${escapeHtml(nodo.uptime)}</div>
+                <div class="hover-stat-item">
+                    <strong>CPU:</strong> ${nodo.cpu_uso}%
+                    <div class="progress progress-xs mt-1">
+                        <div class="progress-bar bg-primary" style="width: ${nodo.cpu_uso}%"></div>
+                    </div>
+                </div>
+                <div class="hover-stat-item">
+                    <strong>RAM:</strong> ${ramUsoMb}MB / ${ramTotalMb}MB (${ramUsoPct}%)
+                    <div class="progress progress-xs mt-1">
+                        <div class="progress-bar bg-success" style="width: ${ramUsoPct}%"></div>
+                    </div>
+                </div>
+                <div class="hover-actions-bar">
+                    <button class="btn btn-hover-action btn-outline-success" onclick="event.stopPropagation(); ejecutarHerramientaRed('ping', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-play-fill me-1"></i>Ping</button>
+                    <button class="btn btn-hover-action btn-outline-info text-dark" onclick="event.stopPropagation(); ejecutarHerramientaRed('traceroute', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-bezier2 me-1"></i>Trace</button>
+                </div>
+            `;
+        } else {
+            let statusText = isOnline ? `<span class="text-success"><i class="bi bi-circle-fill me-1 small"></i>Online</span>` : `<span class="text-danger"><i class="bi bi-circle-fill me-1 small"></i>Caído</span>`;
+            let deviceLabel = nodo.tipo.toUpperCase();
+            detailsHtml = `
+                <div class="hover-stat-item"><strong>Tipo:</strong> ${deviceLabel}</div>
+                <div class="hover-stat-item"><strong>Estado:</strong> ${statusText}</div>
+                <div class="hover-stat-item"><strong>IP:</strong> ${escapeHtml(nodo.ip_address)}</div>
+                ${isOnline && ms !== undefined ? `<div class="hover-stat-item"><strong>Latencia:</strong> ${ms} ms</div>` : ''}
+                <div class="hover-actions-bar">
+                    <button class="btn btn-hover-action btn-outline-success" onclick="event.stopPropagation(); ejecutarHerramientaRed('ping', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-play-fill me-1"></i>Ping</button>
+                    <button class="btn btn-hover-action btn-outline-info text-dark" onclick="event.stopPropagation(); ejecutarHerramientaRed('traceroute', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-bezier2 me-1"></i>Trace</button>
+                </div>
+            `;
+        }
+
+        const popoverHtml = `
+            <div class="node-hover-details">
+                <div class="hover-details-title">${escapeHtml(nodo.nombre)}</div>
+                <div class="hover-details-body">
+                    ${detailsHtml}
+                </div>
+            </div>
+        `;
 
         nodeEl.innerHTML = `
+            ${popoverHtml}
             <div class="node-header">
-                <div class="node-icon">${iconHtml}</div>
-                <div class="node-status-indicator"></div>
+                <div class="node-icon-wrapper device-type-${nodo.tipo}">
+                    <i class="bi ${iconClass}"></i>
+                    <div class="status-led-badge"></div>
+                </div>
             </div>
             <div class="node-body">
                 <div class="node-title" title="${escapeHtml(nodo.nombre)}">${escapeHtml(nodo.nombre)}</div>
-                <div class="node-ip"><i class="bi bi-hdd-network me-1"></i>${escapeHtml(nodo.ip_address)}</div>
+                <div class="node-ip">${escapeHtml(nodo.ip_address)}</div>
                 <div class="node-ping-info">
-                    ${isOnline ? `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${ms} ms</span>` :
-                      (topologíaState.pingMap[nodo.id] ? `<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Caído</span>` :
-                      `<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1" style="width:9px;height:9px;"></span>...</span>`)}
+                    ${isOnline ? `<span class="badge bg-success">${ms} ms</span>` :
+                      (topologíaState.pingMap[nodo.id] ? `<span class="badge bg-danger">Caído</span>` :
+                      `<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1" style="width:7px;height:7px;"></span>...</span>`)}
                 </div>
             </div>
             <div class="node-actions-menu">
@@ -246,24 +301,24 @@ function renderNodosHTML() {
     });
 }
 
-function getNodoIconoHtml(tipo) {
+function getNodoIconClass(tipo) {
     switch (tipo) {
         case 'router':
-            return '<i class="bi bi-router"></i>';
+            return 'bi-router';
         case 'ap':
-            return '<i class="bi bi-wifi"></i>';
+            return 'bi-broadcast';
         case 'switch':
-            return '<i class="bi bi-hdd-network"></i>';
+            return 'bi-hdd-network-fill';
         case 'cpe':
-            return '<i class="bi bi-reception-4"></i>';
+            return 'bi-reception-4';
         case 'servidor':
-            return '<i class="bi bi-database"></i>';
+            return 'bi-server';
         case 'pc':
-            return '<i class="bi bi-display"></i>';
+            return 'bi-pc-display';
         case 'iot':
-            return '<i class="bi bi-camera-video"></i>';
+            return 'bi-camera-video-fill';
         default:
-            return '<i class="bi bi-hdd"></i>';
+            return 'bi-hdd-fill';
     }
 }
 
@@ -282,10 +337,10 @@ function renderEnlacesSVG() {
         const elOrigen = document.getElementById(`node-card-${origenNode.id}`);
         const elDestino = document.getElementById(`node-card-${destinoNode.id}`);
 
-        const widthOrigen = elOrigen ? elOrigen.offsetWidth : 175;
-        const heightOrigen = elOrigen ? elOrigen.offsetHeight : 80;
-        const widthDestino = elDestino ? elDestino.offsetWidth : 175;
-        const heightDestino = elDestino ? elDestino.offsetHeight : 80;
+        const widthOrigen = elOrigen ? elOrigen.offsetWidth : 140;
+        const heightOrigen = elOrigen ? elOrigen.offsetHeight : 110;
+        const widthDestino = elDestino ? elDestino.offsetWidth : 140;
+        const heightDestino = elDestino ? elDestino.offsetHeight : 110;
 
         // Puntos centrales en las coordenadas locales del viewport
         const x1 = parseFloat(origenNode.pos_x) + widthOrigen / 2;
@@ -303,31 +358,111 @@ function renderEnlacesSVG() {
         g.setAttribute('class', 'topology-link-group');
         g.setAttribute('data-enlace-id', enlace.id);
 
-        // Línea principal
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', x1);
-        line.setAttribute('y1', y1);
-        line.setAttribute('x2', x2);
-        line.setAttribute('y2', y2);
+        // Estilos diferenciadores por tipo de enlace
+        let strokeColor = '#198754';
+        let strokeWidth = '2.5';
+        let dashArray = null;
+
+        if (isLinkOnline) {
+            switch (enlace.tipo_enlace) {
+                case 'fibra':
+                    strokeColor = '#00bcff'; // Azul brillante / Cyan
+                    strokeWidth = '3.5';
+                    break;
+                case 'ethernet':
+                    strokeColor = '#198754'; // Verde sólido
+                    strokeWidth = '2.8';
+                    break;
+                case 'inalambrico':
+                default:
+                    strokeColor = '#10b981'; // Verde menta
+                    strokeWidth = '2.2';
+                    dashArray = '5, 4'; // Segmentada para representar ondas
+                    break;
+            }
+        } else {
+            strokeColor = '#dc3545'; // Rojo caído
+            strokeWidth = '2.5';
+            dashArray = '4, 4'; // Punteada roja para indicar desconexión
+        }
+
+        // Línea principal como path para soportar animateMotion
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+        line.setAttribute('d', pathData);
         line.setAttribute('class', isLinkOnline ? 'topology-line-active' : 'topology-line-inactive');
-        line.setAttribute('stroke', isLinkOnline ? '#198754' : '#dc3545');
-        line.setAttribute('stroke-width', '2.5');
-        line.setAttribute('stroke-dasharray', isLinkOnline ? '6, 6' : '4, 4');
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', strokeWidth);
+        if (dashArray) {
+            line.setAttribute('stroke-dasharray', dashArray);
+        }
+        line.setAttribute('fill', 'none');
 
         g.appendChild(line);
+
+        // Si el enlace está activo, agregamos los dos puntitos que viajan de ida y vuelta
+        if (isLinkOnline) {
+            // Colores de esferas diferenciados por medio físico/tipo de enlace
+            let dot1Color = '#ffffff';
+            let dot2Color = '#a7f3d0';
+
+            switch (enlace.tipo_enlace) {
+                case 'fibra':
+                    dot1Color = '#00f0ff'; // Cyan neón
+                    dot2Color = '#d946ef'; // Magenta neón
+                    break;
+                case 'ethernet':
+                    dot1Color = '#ffffff'; // Blanco puro
+                    dot2Color = '#22c55e'; // Verde intenso
+                    break;
+                case 'inalambrico':
+                default:
+                    dot1Color = '#ffbb00'; // Ámbar / Naranja claro
+                    dot2Color = '#00c8ff'; // Cyan
+                    break;
+            }
+
+            // Punto 1: Origen -> Destino -> Origen (Color 1, más grande y con contorno blanco)
+            const dot1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot1.setAttribute('r', '5.5');
+            dot1.setAttribute('fill', dot1Color);
+            dot1.setAttribute('stroke', '#ffffff');
+            dot1.setAttribute('stroke-width', '1.5');
+            
+            const anim1 = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+            anim1.setAttribute('dur', '3.5s');
+            anim1.setAttribute('repeatCount', 'indefinite');
+            anim1.setAttribute('path', `M ${x1} ${y1} L ${x2} ${y2} L ${x1} ${y1}`);
+            dot1.appendChild(anim1);
+            g.appendChild(dot1);
+
+            // Punto 2: Destino -> Origen -> Destino (Color 2, más grande y con contorno blanco)
+            const dot2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot2.setAttribute('r', '5.5');
+            dot2.setAttribute('fill', dot2Color);
+            dot2.setAttribute('stroke', '#ffffff');
+            dot2.setAttribute('stroke-width', '1.5');
+            
+            const anim2 = document.createElementNS('http://www.w3.org/2000/svg', 'animateMotion');
+            anim2.setAttribute('dur', '3.5s');
+            anim2.setAttribute('repeatCount', 'indefinite');
+            anim2.setAttribute('path', `M ${x2} ${y2} L ${x1} ${y1} L ${x2} ${y2}`);
+            dot2.appendChild(anim2);
+            g.appendChild(dot2);
+        }
 
         // Etiqueta en el punto medio del enlace
         const midX = (x1 + x2) / 2;
         const midY = (y1 + y2) / 2;
 
         const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        textBg.setAttribute('x', midX - 30);
+        textBg.setAttribute('x', midX - 35);
         textBg.setAttribute('y', midY - 9);
-        textBg.setAttribute('width', '60');
+        textBg.setAttribute('width', '70');
         textBg.setAttribute('height', '18');
         textBg.setAttribute('rx', '4');
         textBg.setAttribute('fill', '#ffffff');
-        textBg.setAttribute('stroke', isLinkOnline ? '#198754' : '#dc3545');
+        textBg.setAttribute('stroke', isLinkOnline ? strokeColor : '#dc3545');
         textBg.setAttribute('stroke-width', '1');
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -337,7 +472,14 @@ function renderEnlacesSVG() {
         text.setAttribute('fill', '#334155');
         text.setAttribute('font-size', '9');
         text.setAttribute('font-weight', '600');
-        text.textContent = enlace.etiqueta || (enlace.tipo_enlace === 'ethernet' ? 'Ethernet' : 'Wi-Fi');
+        
+        let labelText = enlace.etiqueta;
+        if (!labelText) {
+            if (enlace.tipo_enlace === 'fibra') labelText = 'Fibra';
+            else if (enlace.tipo_enlace === 'ethernet') labelText = 'Ethernet';
+            else labelText = 'Inalámbrico';
+        }
+        text.textContent = labelText;
 
         g.addEventListener('dblclick', (e) => {
             e.stopPropagation();
@@ -719,4 +861,180 @@ function escapeHtml(text) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+/* --- Buscador Interactivo --- */
+function onBuscarNodo(query) {
+    query = query.trim().toLowerCase();
+    const cards = document.querySelectorAll('.topology-node-card');
+    const links = document.querySelectorAll('.topology-link-group');
+
+    if (query === '') {
+        // Restaurar estado normal
+        cards.forEach(c => {
+            c.classList.remove('topology-node-fade');
+            c.classList.remove('search-pulse');
+        });
+        links.forEach(l => l.classList.remove('topology-link-fade'));
+        return;
+    }
+
+    let exactMatchNodo = null;
+
+    topologíaState.nodos.forEach(nodo => {
+        const card = document.getElementById(`node-card-${nodo.id}`);
+        if (!card) return;
+
+        const match = nodo.nombre.toLowerCase().includes(query) || nodo.ip_address.toLowerCase().includes(query);
+        
+        if (match) {
+            card.classList.remove('topology-node-fade');
+            if (nodo.nombre.toLowerCase() === query || nodo.ip_address.toLowerCase() === query) {
+                exactMatchNodo = nodo;
+            }
+        } else {
+            card.classList.add('topology-node-fade');
+            card.classList.remove('search-pulse');
+        }
+    });
+
+    // Atenuar enlaces que no estén conectados a nodos coincidentes
+    topologíaState.enlaces.forEach(enlace => {
+        const linkEl = document.querySelector(`.topology-link-group[data-enlace-id="${enlace.id}"]`);
+        if (!linkEl) return;
+
+        const nodoO = topologíaState.nodos.find(n => n.id == enlace.nodo_origen_id);
+        const nodoD = topologíaState.nodos.find(n => n.id == enlace.nodo_destino_id);
+
+        const matchO = nodoO && (nodoO.nombre.toLowerCase().includes(query) || nodoO.ip_address.toLowerCase().includes(query));
+        const matchD = nodoD && (nodoD.nombre.toLowerCase().includes(query) || nodoD.ip_address.toLowerCase().includes(query));
+
+        if (matchO || matchD) {
+            linkEl.classList.remove('topology-link-fade');
+        } else {
+            linkEl.classList.add('topology-link-fade');
+        }
+    });
+
+    // Escuchar el evento keydown en el input de búsqueda para autocompletar en enter
+    const input = document.getElementById('search-topology-input');
+    if (input && !input.dataset.hasEnterEvent) {
+        input.dataset.hasEnterEvent = 'true';
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const queryVal = input.value.trim().toLowerCase();
+                const matched = topologíaState.nodos.find(n => n.nombre.toLowerCase().includes(queryVal) || n.ip_address.toLowerCase().includes(queryVal));
+                if (matched) {
+                    enfocarNodoEnMapa(matched);
+                }
+            }
+        });
+    }
+}
+
+function enfocarNodoEnMapa(nodo) {
+    const card = document.getElementById(`node-card-${nodo.id}`);
+    if (!card) return;
+
+    // Quitar pulsos previos
+    document.querySelectorAll('.topology-node-card').forEach(c => c.classList.remove('search-pulse'));
+
+    // Calcular el desplazamiento necesario para centrar el nodo
+    const workspace = document.getElementById('topology-workspace');
+    if (!workspace) return;
+
+    const wWidth = workspace.clientWidth;
+    const wHeight = workspace.clientHeight;
+
+    const nodeWidth = card.offsetWidth || 140;
+    const nodeHeight = card.offsetHeight || 110;
+
+    // Zoom a 1.2 para ver detalles claramente
+    topologíaState.zoom = 1.2;
+
+    // Calcular coordenadas del paneo para centrar el nodo
+    topologíaState.pan.x = (wWidth / 2) - (parseFloat(nodo.pos_x) + nodeWidth / 2) * topologíaState.zoom;
+    topologíaState.pan.y = (wHeight / 2) - (parseFloat(nodo.pos_y) + nodeHeight / 2) * topologíaState.zoom;
+
+    applyViewportTransform();
+
+    // Activar animación de parpadeo temporal
+    card.classList.add('search-pulse');
+    setTimeout(() => {
+        card.classList.remove('search-pulse');
+    }, 4500);
+}
+
+/* --- Consola en Tiempo Real (SSE) --- */
+let sseConnection = null;
+
+function ejecutarHerramientaRed(tipo, ip, nombre) {
+    detenerHerramientaRed();
+
+    const modalEl = document.getElementById('modalTerminal');
+    const titleEl = document.getElementById('terminal-modal-title');
+    const bodyEl = document.getElementById('terminal-output-body');
+
+    if (!modalEl || !bodyEl) return;
+
+    titleEl.textContent = `${tipo.toUpperCase()} A: ${nombre} [${ip}]`;
+    bodyEl.innerHTML = `Conectando con el servidor para iniciar ${tipo}...\n`;
+
+    // Inicializar e instanciar el modal con Bootstrap
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Crear conexión Server-Sent Events (SSE)
+    const url = `controllers/HerramientasController.php?action=${tipo}_stream&target=${encodeURIComponent(ip)}`;
+    sseConnection = new EventSource(url);
+
+    sseConnection.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            const rawLine = data.line || '';
+
+            // Quitar el cursor viejo
+            const cursor = bodyEl.querySelector('.terminal-cursor');
+            if (cursor) cursor.remove();
+
+            // Insertar línea y reinstalar el cursor al final
+            bodyEl.appendChild(document.createTextNode(rawLine + "\n"));
+            
+            const newCursor = document.createElement('span');
+            newCursor.className = 'terminal-cursor';
+            bodyEl.appendChild(newCursor);
+
+            // Auto-scroll al final
+            bodyEl.scrollTop = bodyEl.scrollHeight;
+        } catch (e) {
+            console.error('Error al procesar línea de consola:', e);
+        }
+    };
+
+    sseConnection.onerror = function() {
+        // Quitar cursor
+        const cursor = bodyEl.querySelector('.terminal-cursor');
+        if (cursor) cursor.remove();
+
+        bodyEl.appendChild(document.createTextNode("\n--- Proceso finalizado o conexión cerrada ---\n"));
+        if (sseConnection) {
+            sseConnection.close();
+            sseConnection = null;
+        }
+    };
+}
+
+function detenerHerramientaRed() {
+    if (sseConnection) {
+        sseConnection.close();
+        sseConnection = null;
+    }
+
+    const modalEl = document.getElementById('modalTerminal');
+    if (modalEl) {
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    }
 }

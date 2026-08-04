@@ -7,6 +7,11 @@ if (!isset($_SESSION['user_id'])) {
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-diagram-3 text-secondary me-2"></i> Topología de Red</h2>
     <div class="d-flex align-items-center gap-2">
+        <!-- Buscador de Equipos -->
+        <div class="topology-search-container me-2">
+            <i class="bi bi-search topology-search-icon"></i>
+            <input type="text" class="form-control topology-search-input" id="search-topology-input" placeholder="Buscar equipo o IP..." oninput="onBuscarNodo(this.value)">
+        </div>
         <button class="btn btn-primary shadow-sm" onclick="abrirModalNuevoNodo()">
             <i class="bi bi-plus-circle me-1"></i> Nuevo Equipo
         </button>
@@ -122,13 +127,13 @@ if (!isset($_SESSION['user_id'])) {
                     <div class="mb-3">
                         <label for="nodo_tipo" class="form-label fw-bold">Tipo de Dispositivo</label>
                         <select class="form-select" id="nodo_tipo" name="tipo">
-                            <option value="router">MikroTik / Router Administrador</option>
-                            <option value="ap" selected>Antena AP / Access Point</option>
-                            <option value="switch">Switch POE / Conmutador</option>
-                            <option value="cpe">CPE Cliente / Receptora</option>
-                            <option value="servidor">Servidor / NAS</option>
+                            <option value="router">MikroTik / Router</option>
+                            <option value="ap" selected>AP / Access Point</option>
+                            <option value="switch">Switch</option>
+                            <option value="cpe">ST / Estación / CPE</option>
+                            <option value="servidor">Servidor</option>
                             <option value="pc">PC / Computadora</option>
-                            <option value="iot">Dispositivo IoT / Cámara IP</option>
+                            <option value="iot">Dispositivo IP / IoT</option>
                         </select>
                     </div>
                 </div>
@@ -182,6 +187,32 @@ if (!isset($_SESSION['user_id'])) {
                     <button type="submit" class="btn btn-primary"><i class="bi bi-link-45deg me-1"></i> Crear Enlace</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Terminal Diagnóstico -->
+<div class="modal fade" id="modalTerminal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow-lg terminal-window">
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    <span class="terminal-dot red"></span>
+                    <span class="terminal-dot yellow"></span>
+                    <span class="terminal-dot green"></span>
+                    <span class="ms-2" id="terminal-modal-title">CONSOLA DE DIAGNÓSTICO ELISSA</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="detenerHerramientaRed()"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="terminal-body" id="terminal-output-body">Iniciando terminal...<span class="terminal-cursor"></span></div>
+            </div>
+            <div class="modal-footer bg-dark border-0 d-flex justify-content-between p-3">
+                <span class="text-muted small font-monospace">SSE Real-Time Diagnostic Tool</span>
+                <button type="button" class="btn btn-sm btn-danger px-3 fw-bold" onclick="detenerHerramientaRed()">
+                    <i class="bi bi-x-circle me-1"></i> Detener y Cerrar
+                </button>
+            </div>
         </div>
     </div>
 </div>

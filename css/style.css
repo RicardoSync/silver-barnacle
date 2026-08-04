@@ -530,105 +530,199 @@ body.is-fullscreen #sidebarCollapse {
 
 .topology-node-card {
     position: absolute;
-    width: 175px;
-    padding: 10px;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    color: #1e293b;
+    width: 140px;
+    padding: 5px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
     cursor: grab;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s ease;
+}
+
+.topology-node-card:hover {
+    transform: scale(1.06);
 }
 
 .topology-node-card:active {
     cursor: grabbing;
 }
 
-.topology-node-card.online {
-    border-left: 4px solid #198754;
+/* Contenedor de iconos tipo círculo con Bootstrap Icons */
+.node-icon-wrapper {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.65rem;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.25s ease;
+    border: 2.5px solid #cbd5e1;
+    background: #ffffff;
 }
 
-.topology-node-card.offline {
-    border-left: 4px solid #dc3545;
+.topology-node-card:hover .node-icon-wrapper {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.12);
 }
 
-.topology-node-card.selected-source {
+/* Variantes de color por dispositivo */
+.node-icon-wrapper.device-type-router {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #2563eb;
+}
+.node-icon-wrapper.device-type-ap {
+    background: #f0fdfa;
+    border-color: #0d9488;
+    color: #0f766e;
+}
+.node-icon-wrapper.device-type-switch {
+    background: #eef2ff;
+    border-color: #6366f1;
+    color: #4f46e5;
+}
+.node-icon-wrapper.device-type-cpe {
+    background: #faf5ff;
+    border-color: #a855f7;
+    color: #7e22ce;
+}
+.node-icon-wrapper.device-type-servidor {
+    background: #f8fafc;
+    border-color: #475569;
+    color: #334155;
+}
+.node-icon-wrapper.device-type-pc {
+    background: #fff7ed;
+    border-color: #f97316;
+    color: #ea580c;
+}
+.node-icon-wrapper.device-type-iot {
+    background: #fdf2f8;
+    border-color: #ec4899;
+    color: #db2777;
+}
+
+/* LED de Estado Flotante en el Círculo */
+.status-led-badge {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    background-color: #94a3b8;
+    transition: background-color 0.3s ease;
+}
+
+.topology-node-card.online .status-led-badge {
+    background-color: #10b981;
+}
+
+.topology-node-card.offline .status-led-badge {
+    background-color: #ef4444;
+}
+
+.topology-node-card.pending .status-led-badge {
+    background-color: #f59e0b;
+}
+
+.topology-node-card.selected-source .node-icon-wrapper {
     border-color: #0d6efd !important;
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25) !important;
 }
 
 .node-header {
     display: flex;
+    justify-content: center;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
+    position: relative;
+    width: 60px;
+    height: 60px;
 }
 
 .node-icon {
-    font-size: 1.2rem;
-    color: #475569;
-}
-
-.topology-node-card.online .node-icon {
-    color: #198754;
-}
-
-.topology-node-card.offline .node-icon {
-    color: #dc3545;
-}
-
-.node-status-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: #6c757d;
-}
-
-.topology-node-card.online .node-status-indicator {
-    background-color: #198754;
-}
-
-.topology-node-card.offline .node-status-indicator {
-    background-color: #dc3545;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .node-body {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-top: 3px solid #6c757d;
+    backdrop-filter: blur(4px);
+    border-radius: 6px;
+    padding: 5px 8px;
+    margin-top: 6px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    min-width: 110px;
+    max-width: 130px;
+    transition: border-color 0.3s ease;
+}
+
+.topology-node-card.online .node-body {
+    border-top-color: #198754;
+}
+
+.topology-node-card.offline .node-body {
+    border-top-color: #dc3545;
+}
+
+.topology-node-card.pending .node-body {
+    border-top-color: #ffc107;
 }
 
 .node-title {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #1e293b;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    text-align: center;
 }
 
 .node-ip {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #64748b;
-    font-family: monospace;
+    font-family: var(--bs-font-monospace);
+    margin-top: 1px;
 }
 
 .node-ping-info {
-    margin-top: 4px;
+    margin-top: 2px;
+}
+
+.node-ping-info .badge {
+    font-size: 0.65rem;
+    padding: 2px 4px;
 }
 
 .node-actions-menu {
     position: absolute;
-    top: -12px;
-    right: 6px;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
     display: none;
-    gap: 2px;
+    gap: 4px;
     background: #ffffff;
-    padding: 2px 4px;
-    border-radius: 4px;
+    padding: 3px 6px;
+    border-radius: 20px;
     border: 1px solid #cbd5e1;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    z-index: 100;
 }
 
 .topology-node-card:hover .node-actions-menu {
@@ -636,24 +730,21 @@ body.is-fullscreen #sidebarCollapse {
 }
 
 .btn-xs {
-    padding: 1px 4px;
+    padding: 1px 5px;
     font-size: 10px;
     line-height: 1.2;
-    border-radius: 3px;
-}
-
-/* Animación limpia de líneas SVG */
-@keyframes dash-flow {
-    from {
-        stroke-dashoffset: 24;
-    }
-    to {
-        stroke-dashoffset: 0;
-    }
+    border-radius: 10px;
 }
 
 .topology-line-active {
-    animation: dash-flow 1.5s linear infinite;
+    stroke-linecap: round;
+    filter: drop-shadow(0 1px 2px rgba(25, 135, 84, 0.3));
+}
+
+.topology-line-inactive {
+    stroke-linecap: round;
+    stroke-dasharray: 4, 4;
+    filter: drop-shadow(0 1px 2px rgba(220, 53, 69, 0.2));
 }
 
 .topology-link-group {
@@ -1016,6 +1107,214 @@ body.is-fullscreen #sidebarCollapse {
 @keyframes badgeBlink {
     0% { opacity: 1; }
     100% { opacity: 0.4; }
+}
+
+/* Popover de Detalles en Hover para Nodos de Topología */
+.node-hover-details {
+    position: absolute;
+    bottom: 105%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    width: 210px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 10px 12px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1000;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    margin-bottom: 8px;
+}
+
+.node-hover-details::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #ffffff transparent transparent transparent;
+}
+
+.topology-node-card:hover .node-hover-details {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+
+.hover-details-title {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #0f172a;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+}
+
+.hover-stat-item {
+    font-size: 0.72rem;
+    color: #475569;
+    margin-bottom: 6px;
+    line-height: 1.35;
+}
+
+.hover-stat-item:last-child {
+    margin-bottom: 0;
+}
+
+.progress-xs {
+    height: 5px;
+    background-color: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+/* Buscador de Equipos en Topología */
+.topology-search-container {
+    position: relative;
+    max-width: 280px;
+}
+
+.topology-search-input {
+    padding-left: 2.2rem !important;
+    border-radius: 20px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-size: 0.85rem !important;
+    height: 38px;
+    transition: all 0.2s ease;
+}
+
+.topology-search-input:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+.topology-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+/* Animación de Parpadeo / Pulso para Enfoque en Búsqueda */
+.search-pulse .node-icon-wrapper {
+    animation: nodePulseGlow 0.8s ease-in-out 3 alternate !important;
+}
+
+@keyframes nodePulseGlow {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.7);
+    }
+    100% {
+        transform: scale(1.18);
+        box-shadow: 0 0 0 12px rgba(59, 130, 246, 0);
+    }
+}
+
+/* Estilos de la Ventana de Consola / Terminal SSE */
+.terminal-window {
+    background-color: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.terminal-header {
+    background-color: #1e293b;
+    padding: 8px 16px;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.terminal-title {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.terminal-dot.red { background-color: #ef4444; }
+.terminal-dot.yellow { background-color: #f59e0b; }
+.terminal-dot.green { background-color: #10b981; }
+
+.terminal-body {
+    background-color: #0f172a;
+    color: #22c55e;
+    padding: 16px;
+    height: 320px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    text-shadow: 0 0 2px rgba(34, 197, 94, 0.3);
+}
+
+/* Estilo del cursor parpadeante */
+.terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background-color: #22c55e;
+    animation: cursorBlink 1s infinite steps(2);
+    vertical-align: middle;
+    margin-left: 2px;
+}
+
+@keyframes cursorBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* Atenuación de Nodos en Modo Búsqueda */
+.topology-node-fade {
+    opacity: 0.25 !important;
+    filter: grayscale(80%) !important;
+    pointer-events: none !important;
+}
+
+/* Enlaces atenuados */
+.topology-link-fade {
+    opacity: 0.15 !important;
+    transition: opacity 0.25s ease;
+}
+
+/* Botones del Popover Hover */
+.hover-actions-bar {
+    border-top: 1px solid #f1f5f9;
+    padding-top: 6px;
+    margin-top: 8px;
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.btn-hover-action {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
 }
 
 

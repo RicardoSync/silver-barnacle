@@ -10,7 +10,20 @@ class TopologiaDAO {
 
     public function obtenerNodos() {
         $this->sincronizarConInventario();
-        $stmt = $this->db->query("SELECT * FROM topologia_nodos ORDER BY id ASC");
+        $sql = "SELECT tn.*, 
+                       hr.cpu_uso, hr.ram_total, hr.ram_libre, hr.disco_total, hr.disco_libre, hr.uptime, hr.version_ros
+                FROM topologia_nodos tn
+                LEFT JOIN (
+                    SELECT hr1.*
+                    FROM historico_recursos hr1
+                    INNER JOIN (
+                        SELECT mikrotik_id, MAX(fecha_registro) as max_fecha
+                        FROM historico_recursos
+                        GROUP BY mikrotik_id
+                    ) hr2 ON hr1.mikrotik_id = hr2.mikrotik_id AND hr1.fecha_registro = hr2.max_fecha
+                ) hr ON tn.tipo_ref = 'mikrotik' AND tn.equipo_ref_id = hr.mikrotik_id
+                ORDER BY tn.id ASC";
+        $stmt = $this->db->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
