@@ -6,8 +6,7 @@ let previousNodeStates = {};
 let currentDashboardFilter = 'all';
 let currentDashboardSearch = '';
 let lastFetchedNodes = [];
-let chartPingGoogle = null;
-let chartPingCloudflare = null;
+let chartPingRealtime = null;
 
 let pingChartData = {
     labels: [],
@@ -22,9 +21,8 @@ function initDashboardModule() {
     // 2. Inicializar gráfica real-time de pings
     initRealtimePingCharts();
 
-    // 3. Cargar datos generales y Diales de MikroTik desde la BD
+    // 3. Cargar datos generales
     loadDashboardData();
-    loadMikrotikResourceDials();
 
     if (dashboardInterval) clearInterval(dashboardInterval);
     // Refresh general cada 15 segundos
@@ -33,22 +31,10 @@ function initDashboardModule() {
     if (trafficRealtimeInterval) clearInterval(trafficRealtimeInterval);
     // Refresh tráfico en tiempo real cada 1.2 segundos (1200 ms)
     trafficRealtimeInterval = setInterval(fetchRealtimePings, 1200);
-
-    if (mikrotikDialsInterval) clearInterval(mikrotikDialsInterval);
-    // Refresh diales MikroTik desde BD cada 60 segundos (1 minuto)
-    mikrotikDialsInterval = setInterval(loadMikrotikResourceDials, 60000);
-
-    // Tooltip flotante
-    if (!document.getElementById('hex-tooltip')) {
-        const tt = document.createElement('div');
-        tt.id = 'hex-tooltip';
-        document.body.appendChild(tt);
-    }
 }
 
 window.initDashboardModule = initDashboardModule;
 window.loadDashboardData = loadDashboardData;
-window.loadMikrotikResourceDials = loadMikrotikResourceDials;
 
 // Reloj Digital Header
 function startDigitalClock() {
@@ -81,82 +67,92 @@ window.toggleFullScreen = function () {
     }
 };
 
-// Inicializar Chart.js para Ping a Google y Cloudflare
+// Inicializar Chart.js para Ping a Google y Cloudflare unificado
 function initRealtimePingCharts() {
-    const ctxGoogle = document.getElementById('chart-ping-google');
-    const ctxCloudflare = document.getElementById('chart-ping-cloudflare');
+    const ctx = document.getElementById('chart-ping-realtime');
+    if (!ctx) return;
 
-    if (ctxGoogle) {
-        let canvasCtx = ctxGoogle.getContext('2d');
-        let gradientGoogle = canvasCtx.createLinearGradient(0, 0, 0, 150);
-        gradientGoogle.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
-        gradientGoogle.addColorStop(1, 'rgba(239, 68, 68, 0.05)');
+    let canvasCtx = ctx.getContext('2d');
+    
+    // Gradients for area fills
+    let gradientGoogle = canvasCtx.createLinearGradient(0, 0, 0, 250);
+    gradientGoogle.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+    gradientGoogle.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
 
-        if (chartPingGoogle) chartPingGoogle.destroy();
-        chartPingGoogle = new Chart(canvasCtx, {
-            type: 'line',
-            data: {
-                labels: pingChartData.labels,
-                datasets: [{
-                    label: 'Latencia (ms)',
+    let gradientCloudflare = canvasCtx.createLinearGradient(0, 0, 0, 250);
+    gradientCloudflare.addColorStop(0, 'rgba(245, 158, 11, 0.15)');
+    gradientCloudflare.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+    if (chartPingRealtime) chartPingRealtime.destroy();
+    
+    chartPingRealtime = new Chart(canvasCtx, {
+        type: 'line',
+        data: {
+            labels: pingChartData.labels,
+            datasets: [
+                {
+                    label: 'Google (8.8.8.8)',
                     data: pingChartData.google,
                     borderColor: '#ef4444',
                     backgroundColor: gradientGoogle,
                     borderWidth: 2,
                     fill: true,
-                    tension: 0.3,
-                    pointRadius: 1.5,
+                    tension: 0.4,
+                    pointRadius: 1,
+                    pointHoverRadius: 4,
                     pointBackgroundColor: '#ef4444'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-                scales: {
-                    x: { display: false },
-                    y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } }, beginAtZero: true }
-                }
-            }
-        });
-    }
-
-    if (ctxCloudflare) {
-        let canvasCtx = ctxCloudflare.getContext('2d');
-        let gradientCloudflare = canvasCtx.createLinearGradient(0, 0, 0, 150);
-        gradientCloudflare.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
-        gradientCloudflare.addColorStop(1, 'rgba(245, 158, 11, 0.05)');
-
-        if (chartPingCloudflare) chartPingCloudflare.destroy();
-        chartPingCloudflare = new Chart(canvasCtx, {
-            type: 'line',
-            data: {
-                labels: pingChartData.labels,
-                datasets: [{
-                    label: 'Latencia (ms)',
+                },
+                {
+                    label: 'Cloudflare (1.1.1.1)',
                     data: pingChartData.cloudflare,
                     borderColor: '#f59e0b',
                     backgroundColor: gradientCloudflare,
                     borderWidth: 2,
                     fill: true,
-                    tension: 0.3,
-                    pointRadius: 1.5,
+                    tension: 0.4,
+                    pointRadius: 1,
+                    pointHoverRadius: 4,
                     pointBackgroundColor: '#f59e0b'
-                }]
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: '#475569',
+                        boxWidth: 12,
+                        font: { size: 10 }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleColor: '#f8fafc',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1
+                }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
-                scales: {
-                    x: { display: false },
-                    y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } }, beginAtZero: true }
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8', font: { size: 9 }, maxTicksLimit: 10 }
+                },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.04)' },
+                    ticks: { color: '#94a3b8', font: { size: 9 } },
+                    beginAtZero: true
                 }
             }
-        });
-    }
+        }
+    });
 }
 
 function initHistoricoCharts() {
@@ -218,7 +214,7 @@ async function fetchRealtimePings() {
         if (valGoogleEl) valGoogleEl.innerText = `${pingGoogle} ms`;
         if (valCloudflareEl) valCloudflareEl.innerText = `${pingCloudflare} ms`;
 
-        if (chartPingGoogle && chartPingCloudflare) {
+        if (chartPingRealtime) {
             pingChartData.labels.push(timeStr);
             pingChartData.google.push(pingGoogle);
             pingChartData.cloudflare.push(pingCloudflare);
@@ -229,8 +225,7 @@ async function fetchRealtimePings() {
                 pingChartData.cloudflare.shift();
             }
 
-            chartPingGoogle.update();
-            chartPingCloudflare.update();
+            chartPingRealtime.update();
         }
     } catch (e) {
         console.error("Error fetching live pings", e);
@@ -259,91 +254,8 @@ window.onDashboardSearchChange = function (query) {
     renderFilteredNodes();
 };
 
-// Cargar Diales Medidores (0-100%) por MikroTik desde la BD
 function loadMikrotikResourceDials() {
-    const container = document.getElementById('mikrotik-dials-container');
-    if (!container) return;
-
-    fetch('controllers/MikrotikController.php?action=api_mikrotik_resources_bd')
-        .then(res => res.json())
-        .then(res => {
-            if (res.status === 'success' && res.data) {
-                if (res.data.length === 0) {
-                    container.innerHTML = '<div class="col-12 text-center text-muted small py-4">No hay MikroTiks registrados en la BD.</div>';
-                    return;
-                }
-                
-                let html = '';
-                res.data.forEach(mk => {
-                    const cpu = (mk.cpu_uso !== null && !isNaN(parseInt(mk.cpu_uso))) ? Math.max(0, Math.min(100, parseInt(mk.cpu_uso))) : 0;
-                    const ram = (mk.ram_uso !== null && !isNaN(parseInt(mk.ram_uso))) ? Math.max(0, Math.min(100, parseInt(mk.ram_uso))) : 0;
-                    const lastUpdate = mk.ultima_actualizacion ? mk.ultima_actualizacion.split(' ')[1] : '--:--';
-
-                    const cpuColor = cpu > 85 ? '#ef4444' : (cpu > 60 ? '#f59e0b' : '#10b981');
-                    const ramColor = ram > 85 ? '#ef4444' : (ram > 60 ? '#f59e0b' : '#3b82f6');
-
-                    const cpuOffset = 125.6 - (125.6 * (cpu / 100));
-                    const ramOffset = 125.6 - (125.6 * (ram / 100));
-
-                    const cpuAngle = -90 + (cpu * 1.8);
-                    const ramAngle = -90 + (ram * 1.8);
-
-                    html += `
-                    <div class="col-12 col-md-6">
-                        <div class="border rounded-3 p-3 bg-light shadow-sm h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom border-secondary border-opacity-10">
-                                <div>
-                                    <span class="fw-bold text-dark d-block" style="font-size: 13px;">
-                                        <i class="bi bi-router text-primary me-1"></i>${mk.nombre}
-                                    </span>
-                                    <small class="text-muted font-monospace" style="font-size: 10px;">${mk.ip_address}</small>
-                                </div>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style="font-size: 9px;" title="Última lectura BD">
-                                    <i class="bi bi-clock me-1"></i>${lastUpdate}
-                                </span>
-                            </div>
-
-                            <div class="d-flex justify-content-around align-items-center">
-                                <!-- CPU Meter -->
-                                <div class="d-flex flex-column align-items-center">
-                                    <div class="speedometer-wrapper position-relative my-1" style="width: 80px; height: 45px;">
-                                        <svg viewBox="0 0 100 55" class="speedometer-svg">
-                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round" />
-                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="${cpuColor}" stroke-width="8" stroke-dasharray="125.6" stroke-dashoffset="${cpuOffset}" stroke-linecap="round" style="transition: stroke-dashoffset 0.8s ease;" />
-                                            <g style="transition: transform 0.8s ease; transform-origin: 50px 50px; transform: rotate(${cpuAngle}deg);">
-                                                <polygon points="50,12 46.5,50 53.5,50" fill="#1e293b" />
-                                                <circle cx="50" cy="50" r="5" fill="${cpuColor}" stroke="#ffffff" stroke-width="1.5" />
-                                            </g>
-                                        </svg>
-                                        <div class="speedometer-val text-dark fw-bold" style="font-size: 11px;">${cpu}%</div>
-                                    </div>
-                                    <small class="text-muted text-uppercase fw-semibold" style="font-size: 9px;">CPU</small>
-                                </div>
-
-                                <!-- RAM Meter -->
-                                <div class="d-flex flex-column align-items-center">
-                                    <div class="speedometer-wrapper position-relative my-1" style="width: 80px; height: 45px;">
-                                        <svg viewBox="0 0 100 55" class="speedometer-svg">
-                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round" />
-                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="${ramColor}" stroke-width="8" stroke-dasharray="125.6" stroke-dashoffset="${ramOffset}" stroke-linecap="round" style="transition: stroke-dashoffset 0.8s ease;" />
-                                            <g style="transition: transform 0.8s ease; transform-origin: 50px 50px; transform: rotate(${ramAngle}deg);">
-                                                <polygon points="50,12 46.5,50 53.5,50" fill="#1e293b" />
-                                                <circle cx="50" cy="50" r="5" fill="${ramColor}" stroke="#ffffff" stroke-width="1.5" />
-                                            </g>
-                                        </svg>
-                                        <div class="speedometer-val text-dark fw-bold" style="font-size: 11px;">${ram}%</div>
-                                    </div>
-                                    <small class="text-muted text-uppercase fw-semibold" style="font-size: 9px;">RAM</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    `;
-                });
-                container.innerHTML = html;
-            }
-        })
-        .catch(e => console.error("Error al cargar diales de MikroTik:", e));
+    // Función obsoleta en el nuevo diseño
 }
 
 // Cargar Datos NOC
@@ -355,7 +267,7 @@ function loadDashboardData() {
                 const kpis = data.data.kpis;
                 const nodos = data.data.nodos;
 
-                // Actualizar Banners Estilo Zabbix Host Availability
+                // Actualizar Banners de disponibilidad
                 const availEl = document.getElementById('kpi-available-count');
                 const unavailEl = document.getElementById('kpi-unavailable-count');
                 const warnEl = document.getElementById('kpi-warning-count');
@@ -366,51 +278,75 @@ function loadDashboardData() {
                 if (warnEl) warnEl.innerText = kpis.alertas;
                 if (totalEl) totalEl.innerText = kpis.total;
 
-                // Actualizar Salud Global Banner
-                const healthBanner = document.getElementById('global-health-status');
-                if (healthBanner) {
+                // Bordes de alerta si hay caídas/alertas (Estilo simple Bootstrap)
+                const offlineCard = document.getElementById('kpi-offline-card-wrapper');
+                if (offlineCard) {
                     if (kpis.offline > 0) {
-                        healthBanner.innerText = `CRÍTICO (${kpis.offline} CAÍDOS)`;
-                        healthBanner.className = 'fw-bold fs-6 text-danger';
-                    } else if (kpis.alertas > 0) {
-                        healthBanner.innerText = `ALERTA (${kpis.alertas} ADVERTENCIAS)`;
-                        healthBanner.className = 'fw-bold fs-6 text-warning';
+                        offlineCard.classList.add('border', 'border-danger');
                     } else {
-                        healthBanner.innerText = `OPTIMO (100% OPERATIVO)`;
-                        healthBanner.className = 'fw-bold fs-6 text-success';
+                        offlineCard.classList.remove('border', 'border-danger');
+                    }
+                }
+                const warningCard = document.getElementById('kpi-warning-card-wrapper');
+                if (warningCard) {
+                    if (kpis.alertas > 0) {
+                        warningCard.classList.add('border', 'border-warning');
+                    } else {
+                        warningCard.classList.remove('border', 'border-warning');
                     }
                 }
 
-                // Gauge CPU y RAM del Servidor Local
+                // Barras de Progreso CPU y RAM del Servidor Local
                 const cpuVal = (!kpis.server_cpu || isNaN(parseInt(kpis.server_cpu))) ? 0 : Math.max(0, Math.min(100, parseInt(kpis.server_cpu)));
                 const ramVal = (!kpis.server_ram || isNaN(parseInt(kpis.server_ram))) ? 0 : Math.max(0, Math.min(100, parseInt(kpis.server_ram)));
 
-                const cpuPath = document.getElementById('gauge-cpu-path');
-                const cpuNeedle = document.getElementById('gauge-cpu-needle-group');
                 const cpuText = document.getElementById('gauge-cpu-val');
-
-                if (cpuPath && cpuNeedle && cpuText) {
-                    const offset = 125.6 - (125.6 * (cpuVal / 100));
-                    cpuPath.style.strokeDashoffset = offset;
-                    cpuPath.style.stroke = cpuVal > 80 ? '#ef4444' : (cpuVal > 50 ? '#f59e0b' : '#10b981');
-
-                    const angle = -90 + (cpuVal * 1.8);
-                    cpuNeedle.style.transform = `rotate(${angle}deg)`;
+                const cpuProgress = document.getElementById('progress-cpu-local');
+                if (cpuText && cpuProgress) {
                     cpuText.innerText = `${cpuVal}%`;
+                    cpuProgress.style.width = `${cpuVal}%`;
+                    cpuProgress.className = `progress-bar ${cpuVal > 80 ? 'bg-danger' : (cpuVal > 50 ? 'bg-warning' : 'bg-success')}`;
                 }
 
-                const ramPath = document.getElementById('gauge-ram-path');
-                const ramNeedle = document.getElementById('gauge-ram-needle-group');
                 const ramText = document.getElementById('gauge-ram-val');
-
-                if (ramPath && ramNeedle && ramText) {
-                    const offset = 125.6 - (125.6 * (ramVal / 100));
-                    ramPath.style.strokeDashoffset = offset;
-                    ramPath.style.stroke = ramVal > 80 ? '#ef4444' : (ramVal > 50 ? '#f59e0b' : '#3b82f6');
-
-                    const angle = -90 + (ramVal * 1.8);
-                    ramNeedle.style.transform = `rotate(${angle}deg)`;
+                const ramProgress = document.getElementById('progress-ram-local');
+                if (ramText && ramProgress) {
                     ramText.innerText = `${ramVal}%`;
+                    ramProgress.style.width = `${ramVal}%`;
+                    ramProgress.className = `progress-bar ${ramVal > 80 ? 'bg-danger' : (ramVal > 50 ? 'bg-warning' : 'bg-primary')}`;
+                }
+
+                // Calcular Top 3 MikroTiks por Carga CPU
+                const topCpuContainer = document.getElementById('dashboard-top-cpu-container');
+                if (topCpuContainer) {
+                    const mikrotiksOnly = nodos.filter(n => n.tipo === 'mikrotik');
+                    mikrotiksOnly.sort((a, b) => {
+                        const cpuA = a.cpu_uso !== null ? parseInt(a.cpu_uso) : 0;
+                        const cpuB = b.cpu_uso !== null ? parseInt(b.cpu_uso) : 0;
+                        return cpuB - cpuA;
+                    });
+                    const top3 = mikrotiksOnly.slice(0, 3);
+                    if (top3.length === 0) {
+                        topCpuContainer.innerHTML = '<div class="text-center py-3 text-muted small">No hay nodos MikroTik registrados.</div>';
+                    } else {
+                        let topHtml = '';
+                        top3.forEach(mk => {
+                            const cpu = mk.cpu_uso || 0;
+                            const barColor = cpu > 80 ? 'bg-danger' : (cpu > 50 ? 'bg-warning' : 'bg-success');
+                            topHtml += `
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold text-dark text-truncate" style="max-width: 170px;" title="${mk.nombre}"><i class="bi bi-router text-muted me-1"></i>${mk.nombre}</span>
+                                    <span class="badge bg-light text-dark fw-bold" style="font-size: 10px;">${cpu}%</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar ${barColor}" role="progressbar" style="width: ${cpu}%" aria-valuenow="${cpu}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                            `;
+                        });
+                        topCpuContainer.innerHTML = topHtml;
+                    }
                 }
 
                 // Ordenar nodos (Caídos y Alertas primero)
@@ -438,13 +374,11 @@ function loadDashboardData() {
 
                 lastFetchedNodes = nodos;
 
-                // Renderizar la lista de problemas activos (Tabla Zabbix)
+                // Renderizar la lista de problemas activos
                 renderActiveProblemsTable(nodos);
 
-                // Las alertas sonoras y la pantalla roja se gestionan centralizadamente en app.js al superar 1 minuto sin responder.
-
                 const updateEl = document.getElementById('dashboard-last-update');
-                if (updateEl) updateEl.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i> Actualizado: ' + new Date().toLocaleTimeString();
+                if (updateEl) updateEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i> Actualizado: ' + new Date().toLocaleTimeString();
 
                 // Cargar estado del widget de servicios web y DNS
                 loadDashboardServicesStatus();
@@ -452,7 +386,7 @@ function loadDashboardData() {
         }).catch(e => console.error("Error al cargar NOC:", e));
 }
 
-// Renderizar Tabla de Problemas Activos (Estilo Zabbix Image 3)
+// Renderizar Tabla de Problemas Activos
 function renderActiveProblemsTable(nodes) {
     const tbody = document.getElementById('problems-tbody');
     const badge = document.getElementById('problem-count-badge');
@@ -460,17 +394,22 @@ function renderActiveProblemsTable(nodes) {
 
     const problemNodes = nodes.filter(n => n.estado_noc === 'offline' || n.estado_noc === 'alerta');
 
-    if (badge) {
-        badge.innerText = `${problemNodes.length} Problemas`;
-        badge.className = problemNodes.length > 0 ? 'badge bg-danger text-white blink-badge' : 'badge bg-success text-white';
-    }
+        if (badge) {
+            if (problemNodes.length === 0) {
+                badge.innerText = 'Red Operativa';
+                badge.className = 'badge bg-success';
+            } else {
+                badge.innerText = `${problemNodes.length} Incidentes`;
+                badge.className = 'badge bg-danger';
+            }
+        }
 
     if (problemNodes.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center py-4 text-muted">
-                    <i class="bi bi-shield-check text-success fs-3 d-block mb-1"></i>
-                    No hay incidentes ni problemas activos en la red.
+                <td colspan="5" class="text-center py-5 text-muted">
+                    <i class="bi bi-shield-fill-check text-success fs-2 d-block mb-2"></i>
+                    <span class="fw-semibold">No hay incidentes activos en la red.</span>
                 </td>
             </tr>
         `;
@@ -484,8 +423,8 @@ function renderActiveProblemsTable(nodes) {
         const trClass = isOffline ? 'problem-row-down' : 'problem-row-alert';
 
         let severityBadge = isOffline
-            ? '<span class="badge bg-danger text-white blink-badge"><i class="bi bi-x-octagon me-1"></i>DESCONECTADO (DOWN)</span>'
-            : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>LATENCIA ALTA / RECURSOS</span>';
+            ? '<span class="badge bg-danger text-white"><i class="bi bi-x-circle-fill me-1"></i>Caído (DOWN)</span>'
+            : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>Alerta / Latencia</span>';
 
         const pingText = n.ultimo_ping !== null ? `${n.ultimo_ping} ms` : 'OFFLINE';
 
@@ -502,9 +441,9 @@ function renderActiveProblemsTable(nodes) {
                 <td class="font-monospace text-muted">${n.ip_address}</td>
                 <td>${severityBadge}</td>
                 <td class="font-monospace fw-bold ${isOffline ? 'text-danger' : 'text-warning'}">${pingText}</td>
-                <td>
+                <td class="text-end pe-3">
                     <button class="btn btn-xs btn-outline-primary" onclick="${clickAction}" title="Ver Detalles">
-                        <i class="bi bi-eye me-1"></i> Ver
+                        <i class="bi bi-eye-fill me-1"></i> Ver
                     </button>
                 </td>
             </tr>
@@ -739,35 +678,42 @@ function loadDashboardServicesStatus() {
         .then(res => res.json())
         .then(res => {
             if (res.status === 'success' && res.data) {
+                if (res.data.length === 0) {
+                    container.innerHTML = '<div class="text-center py-4 text-muted small">No hay servicios configurados.</div>';
+                    return;
+                }
+                
                 let html = '';
                 res.data.forEach(s => {
-                    let icon = 'bi-globe';
-                    if (s.tipo === 'dns') icon = 'bi-diagram-2';
-                    else if (s.tipo === 'puerto') icon = 'bi-ethernet';
+                    let icon = 'bi-globe text-primary';
+                    if (s.tipo === 'dns') icon = 'bi-diagram-2 text-info';
+                    else if (s.tipo === 'puerto') icon = 'bi-ethernet text-secondary';
 
-                    let badgeClass = 'bg-success-subtle text-success border-success';
-                    let stateText = s.ultimo_ms ? `${s.ultimo_ms}ms` : 'UP';
+                    let ledClass = 'led-success';
+                    let stateText = s.ultimo_ms ? `${s.ultimo_ms} ms` : 'UP';
                     if (s.estado_check === 'lento') {
-                        badgeClass = 'bg-warning-subtle text-warning-emphasis border-warning';
+                        ledClass = 'led-warning';
+                        stateText = `${s.ultimo_ms} ms`;
                     } else if (s.estado_check === 'offline') {
-                        badgeClass = 'bg-danger-subtle text-danger border-danger';
+                        ledClass = 'led-danger';
                         stateText = 'DOWN';
                     }
 
                     html += `
-                    <div class="col-6 col-sm-4 col-md-3 col-xl-2">
-                        <div class="p-2 rounded-3 border ${badgeClass} d-flex align-items-center justify-content-between">
-                            <div class="text-truncate me-1">
-                                <i class="bi ${icon} me-1"></i>
-                                <span class="fw-bold small text-truncate d-inline-block" style="max-width: 90px;" title="${s.nombre}">${s.nombre}</span>
-                            </div>
-                            <span class="badge rounded-pill ${s.estado_check === 'offline' ? 'bg-danger' : (s.estado_check === 'lento' ? 'bg-warning text-dark' : 'bg-success')}" style="font-size: 10px;">${stateText}</span>
+                    <div class="service-item-row d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center text-truncate me-2">
+                            <i class="bi ${icon} me-2 fs-6"></i>
+                            <span class="fw-semibold text-dark text-truncate" style="font-size: 13px;" title="${s.nombre}">${s.nombre}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="font-monospace text-muted" style="font-size: 12px;">${stateText}</span>
+                            <span class="led-indicator ${ledClass}" title="Estado: ${s.estado_check}"></span>
                         </div>
                     </div>
-                `;
+                    `;
                 });
 
-                container.innerHTML = html || '<div class="col-12 text-center text-muted small">No hay servicios configurados.</div>';
+                container.innerHTML = html;
             }
         })
         .catch(e => console.error("Error al cargar resumen de servicios en dashboard:", e));

@@ -191,10 +191,13 @@ $equipos = $equipoDAO->listarActivos();
       <div class="modal-header bg-dark text-white py-2">
         <h5 class="modal-title fs-6 fw-bold mb-0" id="modalAnaliticasTitle"><i class="bi bi-arrows-fullscreen me-2"></i> Gráfica Ampliada</h5>
         <div class="ms-auto me-3 d-flex align-items-center gap-2">
-            <span class="small text-muted me-2" style="font-size: 11px;">Zoom: Rueda del ratón o Arrastre</span>
-            <button class="btn btn-sm btn-outline-light" onclick="zoomAnaliticasChart(1.2)"><i class="bi bi-zoom-in"></i> Acercar</button>
-            <button class="btn btn-sm btn-outline-light" onclick="zoomAnaliticasChart(0.8)"><i class="bi bi-zoom-out"></i> Alejar</button>
-            <button class="btn btn-sm btn-warning" onclick="resetAnaliticasChartZoom()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+            <span class="small text-muted me-2" style="font-size: 11px;">Controles: Rueda / Arrastre</span>
+            <button class="btn btn-sm btn-outline-light" onclick="panAnaliticasChart(100)" title="Mover Izquierda"><i class="bi bi-arrow-left"></i></button>
+            <button class="btn btn-sm btn-outline-light" onclick="panAnaliticasChart(-100)" title="Mover Derecha"><i class="bi bi-arrow-right"></i></button>
+            <button class="btn btn-sm btn-outline-light" onclick="zoomAnaliticasChart(1.2)" title="Acercar"><i class="bi bi-zoom-in"></i></button>
+            <button class="btn btn-sm btn-outline-light" onclick="zoomAnaliticasChart(0.8)" title="Alejar"><i class="bi bi-zoom-out"></i></button>
+            <button class="btn btn-sm btn-warning" onclick="resetAnaliticasChartZoom()" title="Resetear Vista"><i class="bi bi-arrow-counterclockwise"></i></button>
+            <button class="btn btn-sm btn-info text-white" onclick="descargarGraficaAnaliticas()" title="Descargar Imagen"><i class="bi bi-download"></i></button>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>

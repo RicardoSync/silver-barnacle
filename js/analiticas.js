@@ -4,6 +4,13 @@ $(document).ready(function() {
 
     // Inicializar gráficas estáticas vacías
     function initCharts() {
+        if ($.fn.select2) {
+            $('#selectAnaliticasMikrotik, #selectAnaliticasEquipo').select2({
+                theme: 'bootstrap-5',
+                width: '100%'
+            });
+        }
+
         // Chart Ping (Mikrotik)
         const ctxPing = document.getElementById('chartPing').getContext('2d');
         chartPing = new Chart(ctxPing, {
@@ -242,8 +249,50 @@ $(document).ready(function() {
                 });
 
                 chartPing.data.datasets = [
-                    { label: 'Ping Servidor', data: serverData, borderColor: '#3498db', tension: 0.1 },
-                    { label: 'Ping Google (8.8.8.8)', data: googleData, borderColor: '#e74c3c', tension: 0.1 }
+                    { 
+                        label: 'Ping Servidor', 
+                        data: serverData, 
+                        borderColor: '#2ecc71', 
+                        tension: 0.1,
+                        segment: {
+                            borderColor: ctx => (ctx.p0.parsed.y < 0 || ctx.p1.parsed.y < 0) ? '#e74c3c' : '#2ecc71'
+                        },
+                        pointBackgroundColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointBorderColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointRadius: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? 3 : 0;
+                        },
+                        pointHoverRadius: 5
+                    },
+                    { 
+                        label: 'Ping Google (8.8.8.8)', 
+                        data: googleData, 
+                        borderColor: '#2ecc71', 
+                        tension: 0.1,
+                        segment: {
+                            borderColor: ctx => (ctx.p0.parsed.y < 0 || ctx.p1.parsed.y < 0) ? '#e74c3c' : '#2ecc71'
+                        },
+                        pointBackgroundColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointBorderColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointRadius: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? 3 : 0;
+                        },
+                        pointHoverRadius: 5
+                    }
                 ];
                 chartPing.options.animation = false;
                 chartPing.update();
@@ -399,7 +448,30 @@ $(document).ready(function() {
                 });
 
                 chartPingEquipo.data.datasets = [
-                    { label: 'Latencia a Equipo (ms)', data: msData, borderColor: '#1abc9c', tension: 0.1, fill: true, backgroundColor: '#1abc9c33' }
+                    { 
+                        label: 'Latencia a Equipo (ms)', 
+                        data: msData, 
+                        borderColor: '#2ecc71', 
+                        tension: 0.1, 
+                        fill: true, 
+                        backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                        segment: {
+                            borderColor: ctx => (ctx.p0.parsed.y < 0 || ctx.p1.parsed.y < 0) ? '#e74c3c' : '#2ecc71'
+                        },
+                        pointBackgroundColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointBorderColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#e74c3c' : '#2ecc71';
+                        },
+                        pointRadius: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? 3 : 0;
+                        },
+                        pointHoverRadius: 5
+                    }
                 ];
                 chartPingEquipo.options.animation = false;
                 chartPingEquipo.update();
@@ -514,7 +586,12 @@ window.abrirModalGraficaAnaliticas = function(chartKey, title) {
             fill: ds.fill,
             tension: ds.tension,
             borderWidth: ds.borderWidth,
-            yAxisID: ds.yAxisID
+            yAxisID: ds.yAxisID,
+            segment: ds.segment,
+            pointBackgroundColor: ds.pointBackgroundColor,
+            pointBorderColor: ds.pointBorderColor,
+            pointRadius: ds.pointRadius,
+            pointHoverRadius: ds.pointHoverRadius
         }))
     };
 
@@ -569,5 +646,20 @@ window.zoomAnaliticasChart = function(factor) {
 window.resetAnaliticasChartZoom = function() {
     if (modalAnaliticasChartInstance && typeof modalAnaliticasChartInstance.resetZoom === 'function') {
         modalAnaliticasChartInstance.resetZoom();
+    }
+};
+
+window.panAnaliticasChart = function(deltaX) {
+    if (modalAnaliticasChartInstance && typeof modalAnaliticasChartInstance.pan === 'function') {
+        modalAnaliticasChartInstance.pan({x: deltaX});
+    }
+};
+
+window.descargarGraficaAnaliticas = function() {
+    if (modalAnaliticasChartInstance) {
+        const link = document.createElement('a');
+        link.download = 'grafica_analiticas.png';
+        link.href = modalAnaliticasChartInstance.toBase64Image();
+        link.click();
     }
 };
