@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.clearEquiposDetallesIntervals === 'function') {
             window.clearEquiposDetallesIntervals();
         }
+        if (typeof window.clearPingMultiIntervals === 'function') {
+            window.clearPingMultiIntervals();
+        }
 
         let url = 'views/' + viewName + '.php';
         if (params) {
@@ -171,6 +174,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (viewName === 'traceroute') {
             if (typeof initTracerouteModule === 'function') {
                 initTracerouteModule();
+            }
+        } else if (viewName === 'ping_multi') {
+            if (typeof initPingMultiModule === 'function') {
+                initPingMultiModule();
+            }
+        } else if (viewName === 'speedtest') {
+            if (typeof initSpeedtestModule === 'function') {
+                initSpeedtestModule();
             }
         } else {
             // Initialize Default DataTables for other views

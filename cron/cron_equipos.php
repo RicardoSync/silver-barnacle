@@ -30,20 +30,21 @@ usleep(2200000); // 2.2 segundos
 
 // Procesar resultados
 foreach ($jobs as $id => $temp_file) {
-    $ms = 0;
+    $ms = -1;
     if (file_exists($temp_file)) {
         $output = file_get_contents($temp_file);
-        // Eliminar archivo temporal
         unlink($temp_file);
         
-        if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
+        if (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
             $ms = intval(round(floatval($matches[1])));
+        } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false) {
+            $ms = 0;
         }
     }
     
-    // Guardar en base de datos
+    // Guardar en base de datos (0ms es online, -1 es offline)
     $stmt = $con->prepare("INSERT INTO historico_pings_equipos (equipo_id, ms) VALUES (?, ?)");
-    $stmt->execute([$id, $ms]);
+    $stmt->execute([$id, max(-1, $ms)]);
 }
 
 echo "Cron Equipos Pings completado. Procesados: " . count($equipos) . " equipos.\n";

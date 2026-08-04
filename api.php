@@ -10,19 +10,46 @@ use RouterOS\Exceptions\Exception;
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $dao = new MikrotikDAO();
 
+if (!function_exists('helperEjecutarPing')) {
+    function helperEjecutarPing($ip) {
+        if (empty($ip)) return ['ms' => -1, 'online' => false];
+        $ip_escaped = escapeshellarg(trim($ip));
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        $cmd = $isWindows ? "ping -n 1 -w 1000 {$ip_escaped} 2>&1" : "ping -c 1 -W 1 {$ip_escaped} 2>&1";
+        $output = shell_exec($cmd);
+
+        $ms = -1;
+        $online = false;
+
+        if (!empty($output)) {
+            if (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
+                $ms = intval(round(floatval($matches[1])));
+                $online = true;
+            } elseif (preg_match('/rtt min\/avg\/max\/mdev = [\d\.]+\/([\d\.]+)\//i', $output, $matches)) {
+                $ms = intval(round(floatval($matches[1])));
+                $online = true;
+            } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false || strpos($output, '1 packets received') !== false) {
+                $ms = 0;
+                $online = true;
+            }
+        }
+
+        return [
+            'ms' => $online ? max(0, $ms) : -1,
+            'online' => $online
+        ];
+    }
+}
+
 switch ($action) {
     case 'listar':
         // 1. Lista de mikrotik con nombre, ip, puerto, estado activo o offline
         $datos = $dao->listarActivos();
         $array = array();
         foreach ($datos as $row) {
-            $ip = escapeshellarg($row['ip_address']);
-            $output = shell_exec("ping -c 1 -W 1 $ip 2>&1");
-            $estado = 'offline';
-            if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
-                $estado = 'activo';
-            }
-            
+            $resPing = helperEjecutarPing($row['ip_address']);
+            $estado = $resPing['online'] ? 'activo' : 'offline';
+
             $array[] = array(
                 "id" => $row['id'],
                 "nombre" => $row['nombre'],
@@ -40,12 +67,8 @@ switch ($action) {
         $data = $dao->obtenerPorId($id);
         if ($data) {
             // Ping Server -> MikroTik
-            $ip = escapeshellarg($data['ip_address']);
-            $output = shell_exec("ping -c 1 -W 1 $ip 2>&1");
-            $ping_server = -1;
-            if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
-                $ping_server = intval(round(floatval($matches[1])));
-            }
+            $resPing = helperEjecutarPing($data['ip_address']);
+            $ping_server = $resPing['ms'];
 
             // Ping MikroTik -> Google
             $ping_google = -1;
@@ -281,15 +304,9 @@ switch ($action) {
             $alertas = 0;
 
             foreach ($nodos as &$n) {
-                // Hacer un ping real de 1 paquete con 1 segundo de timeout
-                $ip = escapeshellarg($n['ip_address']);
-                $output = shell_exec("ping -c 1 -W 1 $ip 2>&1");
-                $ping_real = -1;
-                if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
-                    $ping_real = intval(round(floatval($matches[1])));
-                }
-                
-                $n['ultimo_ping'] = $ping_real > -1 ? $ping_real : null;
+                $resPing = helperEjecutarPing($n['ip_address']);
+                $ping_real = $resPing['ms'];
+                $n['ultimo_ping'] = $resPing['online'] ? $ping_real : null;
                 $ping = $ping_real;
                 
                 $cpu = $n['cpu_uso'] !== null ? intval($n['cpu_uso']) : 0;
@@ -298,7 +315,7 @@ switch ($action) {
                 $n['trafico_mbps'] = round($traf_mbps, 2);
                 
                 $estado = 'online';
-                if ($ping == -1 || $ping == 0) {
+                if (!$resPing['online'] || $ping === -1) {
                     $estado = 'offline';
                     $offline++;
                 } else {
@@ -318,6 +335,83 @@ switch ($action) {
         } catch (\Exception $e) { 
             echo json_encode(array("status" => "error", "message" => $e->getMessage())); 
         }
+        break;
+
+    case 'obtener_dispositivos_ping':
+        try {
+            $con = (new Conexion())->conectar();
+            $opciones = [];
+
+            // Presets
+            $opciones[] = [
+                "id" => "preset_google",
+                "nombre" => "Google DNS (8.8.8.8)",
+                "ip" => "8.8.8.8",
+                "categoria" => "Predefinidos"
+            ];
+            $opciones[] = [
+                "id" => "preset_cloudflare",
+                "nombre" => "Cloudflare DNS (1.1.1.1)",
+                "ip" => "1.1.1.1",
+                "categoria" => "Predefinidos"
+            ];
+
+            // MikroTiks
+            $stmtMk = $con->query("SELECT id, nombre, ip_address FROM mikrotiks WHERE estado_actual = 1 ORDER BY nombre ASC");
+            while ($m = $stmtMk->fetch(PDO::FETCH_ASSOC)) {
+                $opciones[] = [
+                    "id" => "mk_" . $m['id'],
+                    "nombre" => "MikroTik: " . $m['nombre'] . " (" . $m['ip_address'] . ")",
+                    "ip" => $m['ip_address'],
+                    "categoria" => "MikroTiks"
+                ];
+            }
+
+            // Equipos (ONUs, APs, etc)
+            $stmtEq = $con->query("SELECT id, nombre, ip_address FROM equipos WHERE estado = 1 ORDER BY nombre ASC");
+            while ($e = $stmtEq->fetch(PDO::FETCH_ASSOC)) {
+                $opciones[] = [
+                    "id" => "eq_" . $e['id'],
+                    "nombre" => "Equipo: " . $e['nombre'] . " (" . $e['ip_address'] . ")",
+                    "ip" => $e['ip_address'],
+                    "categoria" => "Equipos / ONUs / APs"
+                ];
+            }
+
+            echo json_encode(["status" => "success", "data" => $opciones]);
+        } catch (\Exception $e) {
+            echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+        }
+        break;
+
+    case 'ping_batch':
+        $ips_raw = isset($_REQUEST['ips']) ? $_REQUEST['ips'] : [];
+        if (is_string($ips_raw)) {
+            $ips_decoded = json_decode($ips_raw, true);
+            if (is_array($ips_decoded)) {
+                $ips_raw = $ips_decoded;
+            } else {
+                $ips_raw = array_filter(array_map('trim', explode(',', $ips_raw)));
+            }
+        }
+
+        $resultados = [];
+        if (is_array($ips_raw)) {
+            foreach ($ips_raw as $ip) {
+                $cleanIp = trim($ip);
+                if (!empty($cleanIp)) {
+                    $res = helperEjecutarPing($cleanIp);
+                    $resultados[$cleanIp] = [
+                        "ip" => $cleanIp,
+                        "ms" => $res['ms'],
+                        "online" => $res['online'],
+                        "status" => $res['online'] ? 'online' : 'offline'
+                    ];
+                }
+            }
+        }
+
+        echo json_encode(["status" => "success", "data" => $resultados]);
         break;
 
     case 'servicios_listar':

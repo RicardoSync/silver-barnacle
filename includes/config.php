@@ -1,6 +1,6 @@
 <?php
 class Conexion {
-    private $host = "172.16.20.203";
+    private $host = "192.250.250.254";
     private $port = 3306;
     private $user = "mango";
     private $pass = "zerocuatro04";

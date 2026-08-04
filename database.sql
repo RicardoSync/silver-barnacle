@@ -207,3 +207,19 @@ CREATE TABLE IF NOT EXISTS historico_servicios (
     FOREIGN KEY (servicio_id) REFERENCES servicios_monitoreo(id) ON DELETE CASCADE,
     INDEX idx_servicio_fecha (servicio_id, fecha_registro)
 ) ENGINE=InnoDB;
+
+-- 17. TABLA DE HISTORIAL DE SPEEDTEST (PRUEBAS DE VELOCIDAD DE ANCHO DE BANDA)
+CREATE TABLE IF NOT EXISTS speedtest_historial (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tipo ENUM('servidor_internet', 'cliente_servidor') NOT NULL DEFAULT 'servidor_internet',
+    ping_ms INT NOT NULL DEFAULT 0,
+    jitter_ms INT NOT NULL DEFAULT 0,
+    download_mbps DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    upload_mbps DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    ip_origen VARCHAR(45) NULL,
+    servidor_destino VARCHAR(255) NULL,
+    usuario_nombre VARCHAR(100) NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_fecha (fecha_registro),
+    INDEX idx_tipo (tipo)
+) ENGINE=InnoDB;

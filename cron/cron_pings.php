@@ -12,15 +12,18 @@ $con = (new Conexion())->conectar();
 foreach ($mikrotiks as $m) {
     // 1. Ping Servidor -> Mikrotik
     $ip = escapeshellarg($m['ip_address']);
-    // -c 1 = 1 packet, -W 2 = 2s timeout
-    $output = shell_exec("ping -c 1 -W 2 $ip 2>&1");
-    $ms_servidor = 0;
-    if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
+    $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    $output = $isWindows ? shell_exec("ping -n 1 -w 2000 $ip 2>&1") : shell_exec("ping -c 1 -W 2 $ip 2>&1");
+    
+    $ms_servidor = -1;
+    if (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
         $ms_servidor = intval(round(floatval($matches[1])));
+    } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false) {
+        $ms_servidor = 0;
     }
     
     $stmt = $con->prepare("INSERT INTO historico_pings (mikrotik_id, tipo, ms) VALUES (?, 'servidor', ?)");
-    $stmt->execute([$m['id'], $ms_servidor]);
+    $stmt->execute([$m['id'], max(-1, $ms_servidor)]);
 
     // 2. Ping Mikrotik -> Google via API
     $ms_google = 0;

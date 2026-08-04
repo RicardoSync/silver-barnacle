@@ -15,8 +15,21 @@ foreach ($mikrotiks as $m) {
     
     // 1. REGLA: CAÍDO (OFFLINE)
     $ip = escapeshellarg($m['ip_address']);
-    $output = shell_exec("ping -c 1 -W 1 $ip 2>&1");
-    $is_online = preg_match('/time=([\d\.]+)\s*ms/', $output);
+    $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    $output = $isWindows ? shell_exec("ping -n 1 -w 1000 $ip 2>&1") : shell_exec("ping -c 1 -W 1 $ip 2>&1");
+    
+    $is_online = false;
+    $latencia = -1;
+    if (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
+        $latencia = floatval($matches[1]);
+        $is_online = true;
+    } elseif (preg_match('/rtt min\/avg\/max\/mdev = [\d\.]+\/([\d\.]+)\//i', $output, $matches)) {
+        $latencia = floatval($matches[1]);
+        $is_online = true;
+    } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false || strpos($output, '1 packets received') !== false) {
+        $latencia = 0;
+        $is_online = true;
+    }
     
     if (!$is_online) {
         insertarAlerta($con, $mikrotik_id, 'offline', "El router no responde a PING (Corte de comunicación)");
@@ -24,11 +37,8 @@ foreach ($mikrotiks as $m) {
     }
     
     // 2. REGLA: LATENCIA ALTA
-    if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
-        $latencia = floatval($matches[1]);
-        if ($latencia > 250) {
-            insertarAlerta($con, $mikrotik_id, 'latencia', "Latencia crítica detectada: {$latencia}ms");
-        }
+    if ($latencia > 250) {
+        insertarAlerta($con, $mikrotik_id, 'latencia', "Latencia crítica detectada: {$latencia}ms");
     }
 
     // 3. REGLA: CPU ALTA (>85%)

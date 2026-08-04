@@ -8,10 +8,18 @@ $con = (new Conexion())->conectar();
 // Función auxiliar para ping
 function isOnline($ip) {
     if (empty($ip)) return false;
-    // Ejecutar ping de 1 paquete, con timeout de 1 segundo
-    $ping = shell_exec("ping -c 1 -W 1 " . escapeshellarg($ip) . " 2>&1");
-    // Si la salida contiene "1 received" o "1 packets received", está online
-    return (strpos($ping, '1 received') !== false || strpos($ping, '1 packets received') !== false);
+    $ip_escaped = escapeshellarg(trim($ip));
+    $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    $ping = $isWindows ? shell_exec("ping -n 1 -w 1000 {$ip_escaped} 2>&1") : shell_exec("ping -c 1 -W 1 {$ip_escaped} 2>&1");
+    if (empty($ping)) return false;
+
+    return (
+        strpos($ping, 'TTL=') !== false || strpos($ping, 'ttl=') !== false ||
+        strpos($ping, '1 received') !== false || strpos($ping, '1 packets received') !== false ||
+        strpos($ping, '1 recibidos') !== false ||
+        preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $ping) ||
+        preg_match('/rtt min\/avg\/max/i', $ping)
+    );
 }
 
 // Obtener contactos de alerta activos

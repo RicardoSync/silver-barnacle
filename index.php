@@ -104,8 +104,18 @@ if (!isset($_SESSION['user_id'])) {
                     </a>
                 </li>
                 <li>
+                    <a href="#" data-view="ping_multi">
+                        <i class="bi bi-grid-3x3-gap-fill me-2"></i> NOC Multigráfica
+                    </a>
+                </li>
+                <li>
                     <a href="#" data-view="traceroute">
                         <i class="bi bi-signpost-split me-2"></i> Traceroute
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="speedtest">
+                        <i class="bi bi-speedometer me-2"></i> Speedtest (Velocidad)
                     </a>
                 </li>
 
@@ -149,6 +159,11 @@ if (!isset($_SESSION['user_id'])) {
                     </button>
                     <div class="fw-bold fs-4 me-auto">Panel de Control</div>
                     
+                    <!-- Botón Global de Speedtest -->
+                    <button type="button" class="btn btn-outline-primary btn-sm me-3 fw-bold shadow-sm" onclick="abrirModalSpeedtestGlobal()" title="Prueba de Velocidad de Red">
+                        <i class="bi bi-speedometer2 me-1"></i> Speedtest
+                    </button>
+
                     <!-- Notification Bell -->
                     <div class="dropdown me-3">
                         <a href="#" class="text-secondary position-relative text-decoration-none" id="bellDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -204,6 +219,8 @@ if (!isset($_SESSION['user_id'])) {
 <script src="js/topologia.js?v=<?php echo time(); ?>"></script>
 <script src="js/servicios.js?v=<?php echo time(); ?>"></script>
 <script src="js/traceroute.js?v=<?php echo time(); ?>"></script>
+<script src="js/ping_multi.js?v=<?php echo time(); ?>"></script>
+<script src="js/speedtest.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

@@ -409,11 +409,11 @@ switch ($action) {
                     $ping_real = intval(round(floatval($matches[1])));
                 } elseif (preg_match('/rtt min\/avg\/max\/mdev = [\d\.]+\/([\d\.]+)\//i', $output, $matches)) {
                     $ping_real = intval(round(floatval($matches[1])));
-                } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false) {
-                    $ping_real = 1;
+                } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false || strpos($output, '1 packets received') !== false) {
+                    $ping_real = 0;
                 }
                 
-                $n['ultimo_ping'] = $ping_real > -1 ? $ping_real : null;
+                $n['ultimo_ping'] = $ping_real > -1 ? max(0, $ping_real) : null;
                 $ping = $ping_real;
                 
                 $cpu = $n['cpu_uso'] !== null ? intval($n['cpu_uso']) : 0;
@@ -435,7 +435,7 @@ switch ($action) {
                 $pings_bd = $stmtP->fetchAll(PDO::FETCH_COLUMN);
                 $pings_array = array_reverse(array_map('intval', $pings_bd));
                 if ($ping_real > -1) {
-                    $pings_array[] = $ping_real;
+                    $pings_array[] = max(0, $ping_real);
                     if (count($pings_array) > 10) array_shift($pings_array);
                 }
                 $n['ping_history'] = $pings_array;
@@ -452,7 +452,7 @@ switch ($action) {
                 if ($alertaCpu || $alertaRam) $hardwareAltoCount++;
 
                 $estado = 'online';
-                if ($ping == -1 || $ping == 0) {
+                if ($ping === -1) {
                     $estado = 'offline';
                     $offline++;
 

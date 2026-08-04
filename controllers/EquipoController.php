@@ -97,12 +97,15 @@ switch ($action) {
             $eq = $dao->obtenerPorId($id);
             if ($eq) {
                 $ip = escapeshellarg($eq['ip_address']);
-                $output = shell_exec("ping -c 1 -W 2 $ip 2>&1");
-                $ms = 0;
-                if (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
+                $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+                $output = $isWindows ? shell_exec("ping -n 1 -w 1500 $ip 2>&1") : shell_exec("ping -c 1 -W 2 $ip 2>&1");
+                $ms = -1;
+                if (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
                     $ms = intval(round(floatval($matches[1])));
+                } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '1 recibidos') !== false) {
+                    $ms = 0;
                 }
-                echo json_encode(array("status" => "success", "ms" => $ms));
+                echo json_encode(array("status" => "success", "ms" => max(0, $ms)));
             } else {
                 echo json_encode(array("status" => "error", "message" => "Equipo no encontrado"));
             }
@@ -126,28 +129,29 @@ switch ($action) {
         if ($id > 0) {
             $eq = $dao->obtenerPorId($id);
             if ($eq) {
-                // Liberar el bloqueo de sesión de PHP para permitir peticiones AJAX paralelas
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
                 
                 $ip = escapeshellarg($eq['ip_address']);
-                // -c 2 = 2 paquetes, -w 2 = deadline de 2 segundos total
-                $output = shell_exec("ping -c 2 -w 2 $ip 2>&1");
+                $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+                $output = $isWindows ? shell_exec("ping -n 2 -w 1500 $ip 2>&1") : shell_exec("ping -c 2 -w 2 $ip 2>&1");
                 $ping_real = -1;
+                $is_online = false;
                 
-                // Intentar sacar el promedio (avg) de los 2 paquetes
-                if (preg_match('/rtt min\/avg\/max\/mdev = [\d\.]+\/([\d\.]+)\//', $output, $matches)) {
+                if (preg_match('/rtt min\/avg\/max\/mdev = [\d\.]+\/([\d\.]+)\//i', $output, $matches)) {
                     $ping_real = intval(round(floatval($matches[1])));
-                } 
-                // Fallback a buscar cualquier tiempo si solo responde 1 paquete
-                elseif (preg_match('/time=([\d\.]+)\s*ms/', $output, $matches)) {
+                    $is_online = true;
+                } elseif (preg_match('/(?:time|tiempo)[=<]([\d\.]+)\s*ms/i', $output, $matches)) {
                     $ping_real = intval(round(floatval($matches[1])));
+                    $is_online = true;
+                } elseif (strpos($output, 'TTL=') !== false || strpos($output, 'ttl=') !== false || strpos($output, '1 received') !== false || strpos($output, '2 received') !== false || strpos($output, '1 recibidos') !== false || strpos($output, '2 recibidos') !== false) {
+                    $ping_real = 0;
+                    $is_online = true;
                 }
                 
-                if ($ping_real > 0 || strpos($output, '1 received') !== false || strpos($output, '2 received') !== false) {
-                    if ($ping_real === -1) $ping_real = 1; // Mínimo 1ms si respondió pero no parseó
-                    echo json_encode(array("status" => "online", "ms" => $ping_real));
+                if ($is_online) {
+                    echo json_encode(array("status" => "online", "ms" => max(0, $ping_real)));
                 } else {
                     echo json_encode(array("status" => "offline"));
                 }
