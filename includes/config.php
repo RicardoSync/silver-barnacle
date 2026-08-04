@@ -1,8 +1,8 @@
 <?php
 class Conexion {
-    private $host = "192.250.250.254";
+    private $host = "localhost";
     private $port = 3306;
-    private $user = "mango";
+    private $user = "doblenet";
     private $pass = "zerocuatro04";
     private $db = "elissa";
     private $conexion;
