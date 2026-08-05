@@ -32,7 +32,8 @@ if (!isset($_SESSION['user_id'])) {
    
     <div id="overlay" class="sidebar-overlay"></div>
 
-    <!-- Overlay de Alerta Crítica (Pantalla Roja) -->
+    <!-- Overlay de Alerta Crítica (Pantalla Roja) - Desactivado por solicitud de usuario -->
+    <!--
     <div id="critical-alert-overlay">
         <i class="bi bi-exclamation-triangle-fill"></i>
         <h1 id="critical-alert-title">¡ALERTA CRÍTICA DE RED!</h1>
@@ -44,6 +45,7 @@ if (!isset($_SESSION['user_id'])) {
             <i class="bi bi-bell-slash me-2"></i> Silenciar / Entendido
         </button>
     </div>
+    -->
 
     <div class="main-wrapper">
         
@@ -139,6 +141,11 @@ if (!isset($_SESSION['user_id'])) {
                 <li>
                     <a href="#" data-view="contactos_alerta">
                         <i class="bi bi-telephone-fill me-2"></i> Números de Alerta
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-view="plantillas_alerta">
+                        <i class="bi bi-chat-text-fill me-2"></i> Plantillas de Alertas
                     </a>
                 </li>
 
@@ -270,6 +277,7 @@ if (!isset($_SESSION['user_id'])) {
 <script src="js/equipos_detalles.js?v=<?php echo time(); ?>"></script>
 <script src="js/whatsapp_config.js?v=<?php echo time(); ?>"></script>
 <script src="js/contactos_alerta.js?v=<?php echo time(); ?>"></script>
+<script src="js/plantillas_alerta.js?v=<?php echo time(); ?>"></script>
 <script src="js/historial_caidas.js?v=<?php echo time(); ?>"></script>
 <script src="js/analiticas.js?v=<?php echo time(); ?>"></script>
 <script src="js/noc.js?v=<?php echo time(); ?>"></script>

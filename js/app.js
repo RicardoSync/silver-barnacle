@@ -151,6 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initContactosAlertaModule === 'function') {
                 initContactosAlertaModule();
             }
+        } else if (viewName === 'plantillas_alerta') {
+            if (typeof initPlantillasAlertaModule === 'function') {
+                initPlantillasAlertaModule();
+            }
         } else if (viewName === 'historial_caidas') {
             if (typeof initHistorialCaidasModule === 'function') {
                 initHistorialCaidasModule();
@@ -270,16 +274,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (!soundPlayedForCaida[c.id]) {
                                 soundPlayedForCaida[c.id] = true;
                                 mostrarToastAlerta(`🚨 CRÍTICO: Nodo ${c.nombre_nodo} lleva +1 min CAÍDO.`, 'error');
-                                playAlarmSound = true;
+                                // playAlarmSound = true; // Desactivado por solicitud del usuario
                             }
                         });
 
-                        // Alerta Visual Roja (Req 2): SOLO cuando un nodo supere más de 1 minuto sin responder
+                        // Alerta Visual Roja (Req 2) Desactivada por solicitud del usuario
                         window.lastCaidasMasDeUnMinuto = caidasCriticas;
-                        mostrarAlertaVisual(caidasCriticas);
+                        // mostrarAlertaVisual(caidasCriticas);
                     } else {
                         window.lastCaidasMasDeUnMinuto = [];
-                        ocultarAlertaVisual();
+                        // ocultarAlertaVisual();
                     }
 
                     // 2. Procesar recuperaciones

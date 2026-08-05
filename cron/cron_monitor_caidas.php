@@ -49,9 +49,13 @@ while ($row = $stmtEq->fetch(PDO::FETCH_ASSOC)) {
     ];
 }
 
+// Obtener plantillas de alerta activas ordenadas por minutos
+$stmtPlantillas = $con->query("SELECT id, minutos, mensaje FROM plantillas_alerta WHERE estado = 1 ORDER BY minutos ASC");
+$plantillas = $stmtPlantillas->fetchAll(PDO::FETCH_ASSOC);
+
 // Consultas preparadas para el historial
 $stmtGetCaida = $con->prepare("
-    SELECT id, fecha_caida, notificado_3m, notificado_30m, 
+    SELECT id, fecha_caida, 
            TIMESTAMPDIFF(MINUTE, fecha_caida, NOW()) as minutos 
     FROM historial_caidas 
     WHERE nodo_id = ? AND tipo_nodo = ? AND estado = 'en_curso'
@@ -62,8 +66,20 @@ $stmtInsertCaida = $con->prepare("
     VALUES (?, ?, ?, 'en_curso')
 ");
 
-$stmtUpdateNotificado3m = $con->prepare("UPDATE historial_caidas SET notificado_3m = 1 WHERE id = ?");
-$stmtUpdateNotificado30m = $con->prepare("UPDATE historial_caidas SET notificado_30m = 1 WHERE id = ?");
+$stmtCheckNotif = $con->prepare("
+    SELECT 1 FROM historial_notificaciones_caidas 
+    WHERE historial_caida_id = ? AND plantilla_alerta_id = ?
+");
+
+$stmtInsertNotif = $con->prepare("
+    INSERT INTO historial_notificaciones_caidas (historial_caida_id, plantilla_alerta_id) 
+    VALUES (?, ?)
+");
+
+$stmtCountNotif = $con->prepare("
+    SELECT COUNT(*) FROM historial_notificaciones_caidas 
+    WHERE historial_caida_id = ?
+");
 
 $stmtResolverCaida = $con->prepare("
     UPDATE historial_caidas 
@@ -87,29 +103,31 @@ foreach ($nodos as $nodo) {
             // Registrar nueva caída (aún no notificamos)
             $stmtInsertCaida->execute([$nodo['id'], $nodo['tipo'], $nodo['nombre']]);
         } else {
-            // Ya estaba caído, comprobamos tiempos
+            // Ya estaba caído, comprobamos tiempos de plantillas dinámicas
             $minutos = (int)$caida['minutos'];
             
-            // Notificar 3 minutos
-            if ($minutos >= 3 && $caida['notificado_3m'] == 0) {
-                $mensaje = "🚨 *ALERTA DE CAÍDA*\n\nEl nodo *{$nodo['nombre']}* ({$nodo['tipo']}) se encuentra CAÍDO. Ya superó los 3 minutos sin respuesta.";
-                
-                foreach ($contactos as $telefono) {
-                    enviarNotificacionCustomWhatsApp($con, $telefono, $mensaje);
+            foreach ($plantillas as $tpl) {
+                if ($minutos >= (int)$tpl['minutos']) {
+                    // Verificar si ya se envió notificación para esta plantilla
+                    $stmtCheckNotif->execute([$caida['id'], $tpl['id']]);
+                    $yaNotificado = $stmtCheckNotif->fetchColumn();
+                    
+                    if (!$yaNotificado) {
+                        // Reemplazar marcadores en el mensaje de la plantilla
+                        $mensaje = str_ireplace(
+                            ['%nombre%', '%tipo%', '%minutos%'],
+                            [$nodo['nombre'], $nodo['tipo'], $tpl['minutos']],
+                            $tpl['mensaje']
+                        );
+                        
+                        foreach ($contactos as $telefono) {
+                            enviarNotificacionCustomWhatsApp($con, $telefono, $mensaje);
+                        }
+                        
+                        // Registrar que ya se notificó esta plantilla
+                        $stmtInsertNotif->execute([$caida['id'], $tpl['id']]);
+                    }
                 }
-                
-                $stmtUpdateNotificado3m->execute([$caida['id']]);
-            }
-            
-            // Notificar 30 minutos
-            if ($minutos >= 30 && $caida['notificado_30m'] == 0) {
-                $mensaje = "🆘 *ALERTA CRÍTICA*\n\nEl nodo *{$nodo['nombre']}* ({$nodo['tipo']}) lleva más de 30 MINUTOS CAÍDO. ¡Se requiere atención inmediata!";
-                
-                foreach ($contactos as $telefono) {
-                    enviarNotificacionCustomWhatsApp($con, $telefono, $mensaje);
-                }
-                
-                $stmtUpdateNotificado30m->execute([$caida['id']]);
             }
         }
     } else {
@@ -118,8 +136,11 @@ foreach ($nodos as $nodo) {
             // Acaba de recuperarse
             $stmtResolverCaida->execute([$nodo['id'], $nodo['tipo']]);
             
-            // Si llegamos a notificar la caída (minutos >= 3), notificamos la recuperación
-            if ($caida['notificado_3m'] == 1) {
+            // Si llegamos a notificar al menos una caída, notificamos la recuperación
+            $stmtCountNotif->execute([$caida['id']]);
+            $totalNotificaciones = (int)$stmtCountNotif->fetchColumn();
+            
+            if ($totalNotificaciones > 0) {
                 // Volvemos a calcular los minutos exactos para el mensaje
                 $duracionSql = $con->query("SELECT duracion_minutos FROM historial_caidas WHERE id = " . $caida['id']);
                 $duracion = $duracionSql->fetchColumn();
