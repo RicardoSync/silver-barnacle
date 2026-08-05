@@ -222,4 +222,34 @@ CREATE TABLE IF NOT EXISTS speedtest_historial (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_fecha (fecha_registro),
     INDEX idx_tipo (tipo)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB;
+
+-- 18. TABLA DE PLANTILLAS DE ALERTA
+CREATE TABLE IF NOT EXISTS plantillas_alerta (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    minutos INT NOT NULL,
+    mensaje TEXT NOT NULL,
+    estado TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 19. TABLA DE HISTORIAL DE NOTIFICACIONES ENVIADAS POR CAÍDA
+CREATE TABLE IF NOT EXISTS historial_notificaciones_caidas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    historial_caida_id INT NOT NULL,
+    plantilla_alerta_id INT NOT NULL,
+    fecha_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (historial_caida_id) REFERENCES historial_caidas(id) ON DELETE CASCADE,
+    FOREIGN KEY (plantilla_alerta_id) REFERENCES plantillas_alerta(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 20. PLANTILLAS DE ALERTA POR DEFECTO
+INSERT IGNORE INTO plantillas_alerta (id, nombre, minutos, mensaje, estado) VALUES
+(1, 'Alerta Simple (3 minutos)', 3, '🚨 *ALERTA DE CAÍDA*\n\nEl nodo *%nombre%* (%tipo%) se encuentra CAÍDO. Ya superó los %minutos% minutos sin respuesta.', 1),
+(2, 'Alerta Intermedia (30 minutos)', 30, '🆘 *ALERTA CRÍTICA*\n\nEl nodo *%nombre%* (%tipo%) lleva más de %minutos% minutos CAÍDO. ¡Se requiere atención inmediata!', 1),
+(3, 'Alerta de Emergencia (2 horas)', 120, '🔥 *EMERGENCIA DE RED*\n\nEl nodo *%nombre%* (%tipo%) lleva fuera de línea por %minutos% minutos. Acción urgente requerida.', 1);
+
+
+
