@@ -200,9 +200,9 @@ if (isset($_SESSION['user_id'])) {
         <div class="login-form-container">
             <form id="loginForm">
                 <div class="mb-3">
-                    <label class="form-label small fw-semibold text-secondary">Correo Electrónico</label>
+                    <label class="form-label small fw-semibold text-secondary">Correo</label>
                     <div class="input-group">
-                        <input type="email" class="form-control" name="correo" placeholder="ejemplo@dominio.com" required>
+                        <input type="email" class="form-control" name="correo" placeholder="ejemplo@elissa.com" required>
                         <span class="input-group-text"><i class="bi bi-envelope text-muted"></i></span>
                     </div>
                 </div>
@@ -229,7 +229,7 @@ if (isset($_SESSION['user_id'])) {
     <!-- Lado Derecho: Logotipo Proporcional (80% ancho, 100% alto) -->
     <div class="logo-panel">
         <div class="logo-showcase-container">
-            <img src="assets/img/logo.png" alt="Elissa Logo" class="main-hero-logo">
+            <img src="assets/img/fondo.png" alt="Elissa Logo">
         </div>
     </div>
 </div>
