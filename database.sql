@@ -247,9 +247,9 @@ CREATE TABLE IF NOT EXISTS historial_notificaciones_caidas (
 
 -- 20. PLANTILLAS DE ALERTA POR DEFECTO
 INSERT IGNORE INTO plantillas_alerta (id, nombre, minutos, mensaje, estado) VALUES
-(1, 'Alerta Simple (3 minutos)', 3, '🚨 *ALERTA DE CAÍDA*\n\nEl nodo *%nombre%* (%tipo%) se encuentra CAÍDO. Ya superó los %minutos% minutos sin respuesta.', 1),
-(2, 'Alerta Intermedia (30 minutos)', 30, '🆘 *ALERTA CRÍTICA*\n\nEl nodo *%nombre%* (%tipo%) lleva más de %minutos% minutos CAÍDO. ¡Se requiere atención inmediata!', 1),
-(3, 'Alerta de Emergencia (2 horas)', 120, '🔥 *EMERGENCIA DE RED*\n\nEl nodo *%nombre%* (%tipo%) lleva fuera de línea por %minutos% minutos. Acción urgente requerida.', 1);
+(1, 'Alerta Simple (3 minutos)', 3, '*ALERTA DE CAÍDA*\n\nEl nodo *%nombre%* (%tipo%) se encuentra CAÍDO. Ya superó los %minutos% minutos sin respuesta.', 1),
+(2, 'Alerta Intermedia (30 minutos)', 30, '*ALERTA CRÍTICA*\n\nEl nodo *%nombre%* (%tipo%) lleva más de %minutos% minutos CAÍDO. ¡Se requiere atención inmediata!', 1),
+(3, 'Alerta de Emergencia (2 horas)', 120, '*EMERGENCIA DE RED*\n\nEl nodo *%nombre%* (%tipo%) lleva fuera de línea por %minutos% minutos. Acción urgente requerida.', 1);
 
 
 
