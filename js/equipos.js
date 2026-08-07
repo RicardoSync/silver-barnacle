@@ -1,14 +1,19 @@
 let tableEquipos;
+let chartPingLiveEquipo = null;
+let chartPingHistoryEquipo = null;
+let pingEquipoLiveInterval = null;
+let livePingSeriesData = [];
+const MAX_LIVE_PING_POINTS = 30;
 
 function initEquiposModule() {
     loadEquipos();
 
-    $('#formNuevoEquipo').submit(function(e) {
+    $('#formNuevoEquipo').off('submit').on('submit', function(e) {
         e.preventDefault();
         saveEquipo(this, '#modalNuevoEquipo');
     });
 
-    $('#formEditarEquipo').submit(function(e) {
+    $('#formEditarEquipo').off('submit').on('submit', function(e) {
         e.preventDefault();
         saveEquipo(this, '#modalEditarEquipo');
     });
@@ -33,17 +38,22 @@ function loadEquipos() {
             { data: 'contacto_snmp' },
             { data: 'estado' },
             { 
-                data: 'id',
+                data: null,
                 className: 'text-end',
                 render: function(data, type, row) {
+                    const escName = escapeHtml(row.nombre);
+                    const escIp = escapeHtml(row.ip_address);
                     return `
-                        <button class="btn btn-sm btn-outline-info shadow-sm me-1" onclick="loadView('equipos/detalles', { id: ${data} })" title="Ver Detalles">
-                            <i class="bi bi-eye"></i>
+                        <button class="btn btn-sm btn-outline-success shadow-sm me-1" onclick="abrirModalPingEquipo(${row.id}, '${escName}', '${escIp}')" title="Ping en Vivo">
+                            <i class="bi bi-activity"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-primary shadow-sm me-1" onclick="editarEquipo(${data})">
+                        <button class="btn btn-sm btn-outline-info shadow-sm me-1" onclick="abrirModalEstadisticasEquipo(${row.id}, '${escName}')" title="Historial de Estadísticas">
+                            <i class="bi bi-graph-up"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary shadow-sm me-1" onclick="editarEquipo(${row.id})" title="Editar">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger shadow-sm" onclick="eliminarEquipo(${data})">
+                        <button class="btn btn-sm btn-outline-danger shadow-sm" onclick="eliminarEquipo(${row.id})" title="Eliminar">
                             <i class="bi bi-trash"></i>
                         </button>
                     `;
@@ -61,7 +71,7 @@ function loadEquipos() {
                 .then(data => {
                     if(data.status === 'online') {
                         span.className = 'badge bg-success';
-                        span.innerHTML = '<i class="bi bi-wifi"></i> Online';
+                        span.innerHTML = `<i class="bi bi-wifi"></i> Online (${data.ms} ms)`;
                         span.setAttribute('data-status', 'done');
                     } else {
                         span.className = 'badge bg-danger';
@@ -77,6 +87,11 @@ function loadEquipos() {
             });
         }
     });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 }
 
 function openModalNuevoEquipo() {
@@ -129,7 +144,7 @@ function saveEquipo(form, modalId) {
                 timer: 1500,
                 showConfirmButton: false
             });
-            tableEquipos.ajax.reload();
+            if (tableEquipos) tableEquipos.ajax.reload();
         } else {
             Swal.fire({
                 icon: 'error',
@@ -166,7 +181,7 @@ function eliminarEquipo(id) {
             .then(data => {
                 if (data.status === 'success') {
                     Swal.fire('¡Eliminado!', 'El equipo ha sido desactivado.', 'success');
-                    tableEquipos.ajax.reload();
+                    if (tableEquipos) tableEquipos.ajax.reload();
                 } else {
                     Swal.fire('Error', data.message, 'error');
                 }
@@ -176,3 +191,179 @@ function eliminarEquipo(id) {
         }
     });
 }
+
+// -------------------------------------------------------------
+// PING EN VIVO (modal_ping.php)
+// -------------------------------------------------------------
+window.abrirModalPingEquipo = function(id, nombre, ip) {
+    $('#ping-equipo-nombre').text(nombre);
+    $('#ping-equipo-ip').text(ip);
+    $('#ping-equipo-latency-text').text('Calculando...');
+
+    if (chartPingLiveEquipo) {
+        chartPingLiveEquipo.destroy();
+        chartPingLiveEquipo = null;
+    }
+
+    const ctx = document.getElementById('chartPingLiveEquipo').getContext('2d');
+    chartPingLiveEquipo = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Ping Servidor -> Equipo (ms)',
+                data: [],
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.15)',
+                fill: true,
+                tension: 0.3,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { beginAtZero: true, title: { display: true, text: 'Milisegundos (ms)' } }
+            }
+        }
+    });
+
+    $('#modalPingEquipo').modal('show');
+
+    if (pingEquipoLiveInterval) clearInterval(pingEquipoLiveInterval);
+    
+    const updatePingLive = () => {
+        fetch('controllers/EquipoController.php?action=api_ping_server&id=' + id)
+            .then(res => res.json())
+            .then(data => {
+                const timeLabel = new Date().toLocaleTimeString('es-MX', { hour12: false });
+                let ms = data.status === 'success' ? (data.ms || 0) : 0;
+                
+                $('#ping-equipo-latency-text').text(ms + ' ms');
+
+                if (chartPingLiveEquipo) {
+                    if (chartPingLiveEquipo.data.labels.length >= MAX_LIVE_PING_POINTS) {
+                        chartPingLiveEquipo.data.labels.shift();
+                        chartPingLiveEquipo.data.datasets[0].data.shift();
+                    }
+                    chartPingLiveEquipo.data.labels.push(timeLabel);
+                    chartPingLiveEquipo.data.datasets[0].data.push(ms);
+                    chartPingLiveEquipo.update();
+                }
+            })
+            .catch(e => console.error('Error fetching live ping equipo:', e));
+    };
+
+    updatePingLive();
+    pingEquipoLiveInterval = setInterval(updatePingLive, 1000);
+};
+
+window.stopPingEquipoLive = function() {
+    if (pingEquipoLiveInterval) {
+        clearInterval(pingEquipoLiveInterval);
+        pingEquipoLiveInterval = null;
+    }
+};
+
+// -------------------------------------------------------------
+// HISTORIAL DE ESTADÍSTICAS (modal_estadisticas.php)
+// -------------------------------------------------------------
+window.abrirModalEstadisticasEquipo = function(id, nombre) {
+    $('#st-equipo-nombre').text(nombre);
+    $('#st-equipo-id-current').val(id);
+    $('#selectFilterPingHoras').val('4'); // Por defecto 4 horas
+
+    $('#modalEstadisticasEquipo').modal('show');
+    cargarEstadisticasPingEquipoActual();
+};
+
+window.cargarEstadisticasPingEquipoActual = function() {
+    const id = $('#st-equipo-id-current').val();
+    const horas = $('#selectFilterPingHoras').val();
+    if (!id) return;
+
+    fetch(`controllers/AnaliticasController.php?action=getPingEquipo&equipo_id=${id}&horas=${horas}`)
+        .then(res => res.json())
+        .then(res => {
+            if (!res || !Array.isArray(res)) res = [];
+
+            // Calcular KPIs
+            let totalMs = 0;
+            let validCount = 0;
+            let offlineCount = 0;
+            let minMs = Infinity;
+            let maxMs = -1;
+
+            res.forEach(item => {
+                const ms = parseInt(item.ms);
+                if (ms > 0) {
+                    totalMs += ms;
+                    validCount++;
+                    if (ms < minMs) minMs = ms;
+                    if (ms > maxMs) maxMs = ms;
+                } else {
+                    offlineCount++;
+                }
+            });
+
+            const totalProbes = res.length;
+            const avgMs = validCount > 0 ? Math.round(totalMs / validCount) : 0;
+            const uptimePercent = totalProbes > 0 ? (Math.round((validCount / totalProbes) * 1000) / 10) : 0;
+            const lossPercent = totalProbes > 0 ? (Math.round((offlineCount / totalProbes) * 1000) / 10) : 0;
+
+            $('#st-ping-avg').text(`${avgMs} ms`);
+            $('#st-ping-minmax').text(`Min: ${minMs === Infinity ? 0 : minMs} / Max: ${maxMs === -1 ? 0 : maxMs} ms`);
+            $('#st-ping-uptime').text(`${uptimePercent}%`);
+            $('#st-ping-loss').text(`${lossPercent}%`);
+            $('#st-equipo-probes').text(`Muestras BD: ${totalProbes}`);
+
+            // Destruir gráfica previa si existe
+            if (chartPingHistoryEquipo) {
+                chartPingHistoryEquipo.destroy();
+                chartPingHistoryEquipo = null;
+            }
+
+            const msData = res.map(item => ({ x: item.fecha_registro, y: item.ms }));
+
+            const ctx = document.getElementById('chartPingHistoryEquipo').getContext('2d');
+            chartPingHistoryEquipo = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Latencia Ping (ms)',
+                        data: msData,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        segment: {
+                            borderColor: ctx => (ctx.p0.parsed.y < 0 || ctx.p1.parsed.y < 0) ? '#dc3545' : '#0d6efd'
+                        },
+                        pointBackgroundColor: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? '#dc3545' : '#0d6efd';
+                        },
+                        pointRadius: ctx => {
+                            let y = ctx.raw ? ctx.raw.y : (ctx.parsed ? ctx.parsed.y : null);
+                            return (y !== null && y < 0) ? 3 : 0;
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    scales: {
+                        x: { type: 'time', time: { tooltipFormat: 'dd MMM yyyy HH:mm' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'Milisegundos (ms)' } }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('Error al cargar historial de ping equipo:', err));
+};
+
+window.initEquiposModule = initEquiposModule;

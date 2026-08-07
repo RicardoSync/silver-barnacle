@@ -1,172 +1,365 @@
-let chartGoogle, chartServer, chartTraffic;
-let pingInterval, trafficInterval;
+let apexGoogleChart = null;
+let apexServerChart = null;
+let chartTraffic = null;
+let pingInterval = null;
+let trafficInterval = null;
+
+let googlePingSeries = [];
+let serverPingSeries = [];
 const MAX_DATA_POINTS = 30;
 
 function initDetallesModule() {
-    const id = document.getElementById('current_mikrotik_id').value;
+    const idInput = document.getElementById('current_mikrotik_id');
+    if (!idInput) return;
+    const id = idInput.value;
     if (!id || id === '0') return;
 
-    // Load Historico Simple
-    fetch('controllers/MikrotikController.php?action=get_historico&id=' + id)
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'success' && data.data) {
-            document.getElementById('det-cpu').innerText = data.data.cpu_uso + '%';
-            document.getElementById('det-ram').innerText = (data.data.ram_libre / 1024 / 1024).toFixed(2) + ' MB';
-            document.getElementById('det-hdd').innerText = (data.data.disco_libre / 1024 / 1024).toFixed(2) + ' MB';
-            document.getElementById('det-uptime').innerText = data.data.uptime;
-        }
-    });
+    // 1. Cargar Recursos (CPU, RAM, Disco, Uptime)
+    fetchResources(id);
 
-    // Initialize DataTables
-    if ($.fn.DataTable.isDataTable('#tablaInterfaces')) $('#tablaInterfaces').DataTable().destroy();
+    // 2. Inicializar DataTables
+    initDetallesDataTables(id);
+
+    // 3. Inicializar Gráficas ApexCharts
+    initApexPingCharts();
+
+    // 4. Iniciar polling de Pings cada 1 segundo
+    if (pingInterval) clearInterval(pingInterval);
+    updatePings(id);
+    pingInterval = setInterval(() => updatePings(id), 1000);
+}
+
+function fetchResources(id) {
+    fetch('controllers/MikrotikController.php?action=get_historico&id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' && data.data) {
+                const cpuEl = document.getElementById('det-cpu');
+                const ramEl = document.getElementById('det-ram');
+                const hddEl = document.getElementById('det-hdd');
+                const uptimeEl = document.getElementById('det-uptime');
+
+                if (cpuEl) cpuEl.innerText = (data.data.cpu_uso || 0) + '%';
+                if (ramEl) {
+                    const ramMb = ((data.data.ram_libre || 0) / (1024 * 1024)).toFixed(2);
+                    ramEl.innerText = ramMb + ' MB';
+                }
+                if (hddEl) {
+                    const hddMb = ((data.data.disco_libre || 0) / (1024 * 1024)).toFixed(2);
+                    hddEl.innerText = hddMb + ' MB';
+                }
+                if (uptimeEl) uptimeEl.innerText = data.data.uptime || '--';
+            }
+        })
+        .catch(err => console.error('Error fetching resources:', err));
+}
+
+function initDetallesDataTables(id) {
+    // Interfaces
+    if ($.fn.DataTable.isDataTable('#tablaInterfaces')) {
+        $('#tablaInterfaces').DataTable().destroy();
+    }
     $('#tablaInterfaces').DataTable({
         "ajax": { "url": "controllers/MikrotikController.php?action=api_interfaces&id=" + id, "dataSrc": "data" },
         "columns": [
             { "data": "name" },
             { "data": "type" },
-            { "data": "mac-address", "defaultContent": "" },
-            { "data": "actual-mtu", "defaultContent": "" },
-            { "data": null, "render": function(data, type, row) {
-                let f = "";
-                if (row.dynamic === "true") f += "D";
-                if (row.disabled === "true") f += "X";
-                if (row.running === "true") f += "R";
-                if (row.slave === "true") f += "S";
-                return f;
-            }},
-            { "data": null, "render": function(data, type, row) {
-                if(row.disabled === "true") return '<span class="badge bg-warning text-dark">Disabled</span>';
-                if(row.running === "true") return '<span class="badge bg-success">Running</span>';
-                return '<span class="badge bg-danger">Not Running</span>';
-            }},
-            { "data": null, "render": function(data, type, row) {
-                return '<button class="btn btn-sm btn-info text-white" onclick="monitorTrafico(\'' + row.name + '\')" title="Monitor de Tráfico"><i class="bi bi-graph-up"></i></button>';
-            }}
+            { "data": "mac-address", "defaultContent": "-" },
+            { "data": "actual-mtu", "defaultContent": "-" },
+            { 
+                "data": null, 
+                "render": function(data, type, row) {
+                    let flags = "";
+                    if (row.dynamic === "true") flags += '<span class="badge text-bg-secondary me-1">D</span>';
+                    if (row.disabled === "true") flags += '<span class="badge text-bg-danger me-1">X</span>';
+                    if (row.running === "true") flags += '<span class="badge text-bg-success me-1">R</span>';
+                    if (row.slave === "true") flags += '<span class="badge text-bg-info me-1">S</span>';
+                    return flags || '-';
+                }
+            },
+            { 
+                "data": null, 
+                "render": function(data, type, row) {
+                    if (row.disabled === "true") return '<span class="badge bg-warning text-dark"><i class="bi bi-pause-circle me-1"></i>Disabled</span>';
+                    if (row.running === "true") return '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Running</span>';
+                    return '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Not Running</span>';
+                }
+            },
+            { 
+                "data": null, 
+                "className": "text-center",
+                "render": function(data, type, row) {
+                    return `<button class="btn btn-sm btn-info text-white shadow-sm" onclick="monitorTrafico('${row.name}')" title="Monitorear Tráfico"><i class="bi bi-graph-up me-1"></i> Tráfico</button>`;
+                }
+            }
         ],
         "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" }
     });
 
-    if ($.fn.DataTable.isDataTable('#tablaArp')) $('#tablaArp').DataTable().destroy();
+    // Tabla ARP
+    if ($.fn.DataTable.isDataTable('#tablaArp')) {
+        $('#tablaArp').DataTable().destroy();
+    }
     $('#tablaArp').DataTable({
         "ajax": { "url": "controllers/MikrotikController.php?action=api_arp&id=" + id, "dataSrc": "data" },
         "columns": [
             { "data": "address" },
-            { "data": "mac-address", "defaultContent": "" },
+            { "data": "mac-address", "defaultContent": "-" },
             { "data": "interface" }
         ],
         "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" }
     });
 
-    if ($.fn.DataTable.isDataTable('#tablaNeighbors')) $('#tablaNeighbors').DataTable().destroy();
+    // Tabla Neighbors
+    if ($.fn.DataTable.isDataTable('#tablaNeighbors')) {
+        $('#tablaNeighbors').DataTable().destroy();
+    }
     $('#tablaNeighbors').DataTable({
         "ajax": { "url": "controllers/MikrotikController.php?action=api_neighbors&id=" + id, "dataSrc": "data" },
         "columns": [
             { "data": "interface" },
-            { "data": "address", "defaultContent": "" },
-            { "data": "mac-address", "defaultContent": "" },
-            { "data": "identity", "defaultContent": "" }
+            { "data": "address", "defaultContent": "-" },
+            { "data": "mac-address", "defaultContent": "-" },
+            { "data": "identity", "defaultContent": "-" }
         ],
         "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" }
     });
 
-    if ($.fn.DataTable.isDataTable('#tablaLogs')) $('#tablaLogs').DataTable().destroy();
+    // Tabla Logs
+    if ($.fn.DataTable.isDataTable('#tablaLogs')) {
+        $('#tablaLogs').DataTable().destroy();
+    }
     $('#tablaLogs').DataTable({
         "ajax": { "url": "controllers/MikrotikController.php?action=api_logs&id=" + id, "dataSrc": "data" },
         "columns": [
-            { "data": "time", "defaultContent": "" },
-            { "data": "topics", "defaultContent": "" },
-            { "data": "message", "defaultContent": "" }
+            { "data": "time", "defaultContent": "-" },
+            { "data": "topics", "defaultContent": "-" },
+            { "data": "message", "defaultContent": "-" }
         ],
         "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" },
-        "order": [] // No auto-sort, keep server order
+        "order": []
     });
-
-    // Initialize Charts
-    initCharts();
-
-    // Start Live Ping
-    if(pingInterval) clearInterval(pingInterval);
-    pingInterval = setInterval(() => updatePings(id), 1000);
 }
 
-function initCharts() {
-    if(chartGoogle) chartGoogle.destroy();
-    if(chartServer) chartServer.destroy();
+function initApexPingCharts() {
+    googlePingSeries = [];
+    serverPingSeries = [];
 
-    const ctxGoogle = document.getElementById('chartPingGoogle').getContext('2d');
-    chartGoogle = new Chart(ctxGoogle, {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Ping a Google', data: [], borderColor: 'rgb(220, 53, 69)', tension: 0.1 }] },
-        options: { animation: false, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return value + ' ms'; } } } } }
-    });
+    if (apexGoogleChart) {
+        try { apexGoogleChart.destroy(); } catch (e) {}
+        apexGoogleChart = null;
+    }
+    if (apexServerChart) {
+        try { apexServerChart.destroy(); } catch (e) {}
+        apexServerChart = null;
+    }
 
-    const ctxServer = document.getElementById('chartPingServer').getContext('2d');
-    chartServer = new Chart(ctxServer, {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Ping a Servidor', data: [], borderColor: 'rgb(13, 110, 253)', tension: 0.1 }] },
-        options: { animation: false, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return value + ' ms'; } } } } }
-    });
+    const optionsGoogle = {
+        series: [{ name: 'Ping Google (8.8.8.8)', data: [] }],
+        chart: {
+            type: 'line',
+            height: 230,
+            toolbar: { show: false },
+            animations: { enabled: false }
+        },
+        colors: ['#dc3545'],
+        stroke: { curve: 'smooth', width: 2 },
+        markers: { size: 3 },
+        xaxis: { categories: [], labels: { style: { fontSize: '10px' } } },
+        yaxis: { labels: { formatter: val => `${Math.round(val)} ms` }, min: 0 },
+        tooltip: { y: { formatter: val => `${val} ms` } }
+    };
+
+    const optionsServer = {
+        series: [{ name: 'Ping Servidor', data: [] }],
+        chart: {
+            type: 'line',
+            height: 230,
+            toolbar: { show: false },
+            animations: { enabled: false }
+        },
+        colors: ['#0d6efd'],
+        stroke: { curve: 'smooth', width: 2 },
+        markers: { size: 3 },
+        xaxis: { categories: [], labels: { style: { fontSize: '10px' } } },
+        yaxis: { labels: { formatter: val => `${Math.round(val)} ms` }, min: 0 },
+        tooltip: { y: { formatter: val => `${val} ms` } }
+    };
+
+    const elGoogle = document.querySelector('#chartPingGoogleApex');
+    if (elGoogle) {
+        apexGoogleChart = new ApexCharts(elGoogle, optionsGoogle);
+        apexGoogleChart.render();
+    }
+
+    const elServer = document.querySelector('#chartPingServerApex');
+    if (elServer) {
+        apexServerChart = new ApexCharts(elServer, optionsServer);
+        apexServerChart.render();
+    }
 }
 
 function updatePings(id) {
-    const timeLabel = new Date().toLocaleTimeString();
+    const timeLabel = new Date().toLocaleTimeString('es-MX', { hour12: false });
 
     // Ping Google
     fetch('controllers/MikrotikController.php?action=api_ping_google&id=' + id)
-    .then(res => res.json())
-    .then(data => {
-        let ms = data.status === 'success' ? data.ms : 0;
-        if(chartGoogle.data.labels.length > MAX_DATA_POINTS) {
-            chartGoogle.data.labels.shift();
-            chartGoogle.data.datasets[0].data.shift();
-        }
-        chartGoogle.data.labels.push(timeLabel);
-        chartGoogle.data.datasets[0].data.push(ms);
-        chartGoogle.update();
-    }).catch(e => console.log(e));
+        .then(res => res.json())
+        .then(data => {
+            let ms = data.status === 'success' ? (data.ms || 0) : 0;
+            if (googlePingSeries.length >= MAX_DATA_POINTS) googlePingSeries.shift();
+            googlePingSeries.push({ x: timeLabel, y: ms });
+
+            if (apexGoogleChart) {
+                apexGoogleChart.updateSeries([{ name: 'Ping Google (8.8.8.8)', data: googlePingSeries }]);
+            }
+        })
+        .catch(e => console.error('Error ping google:', e));
 
     // Ping Server
     fetch('controllers/MikrotikController.php?action=api_ping_server&id=' + id)
-    .then(res => res.json())
-    .then(data => {
-        let ms = data.status === 'success' ? data.ms : 0;
-        if(chartServer.data.labels.length > MAX_DATA_POINTS) {
-            chartServer.data.labels.shift();
-            chartServer.data.datasets[0].data.shift();
-        }
-        chartServer.data.labels.push(timeLabel);
-        chartServer.data.datasets[0].data.push(ms);
-        chartServer.update();
-    }).catch(e => console.log(e));
+        .then(res => res.json())
+        .then(data => {
+            let ms = data.status === 'success' ? (data.ms || 0) : 0;
+            if (serverPingSeries.length >= MAX_DATA_POINTS) serverPingSeries.shift();
+            serverPingSeries.push({ x: timeLabel, y: ms });
+
+            if (apexServerChart) {
+                apexServerChart.updateSeries([{ name: 'Ping Servidor', data: serverPingSeries }]);
+            }
+        })
+        .catch(e => console.error('Error ping server:', e));
 }
+
+// Acción del botón Monitoreo de Tráfico por Interfaz
+window.monitorTrafico = function(interfaceName) {
+    const idInput = document.getElementById('current_mikrotik_id');
+    if (!idInput) return;
+    const id = idInput.value;
+
+    const nameSpan = document.getElementById('tm-interface-name');
+    if (nameSpan) nameSpan.innerText = interfaceName;
+
+    if (chartTraffic) {
+        chartTraffic.destroy();
+        chartTraffic = null;
+    }
+
+    const ctx = document.getElementById('chartTraffic');
+    if (ctx) {
+        chartTraffic = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Descarga (RX)', data: [], borderColor: '#198754', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.3 },
+                    { label: 'Subida (TX)', data: [], borderColor: '#0dcaf0', backgroundColor: 'rgba(13, 202, 240, 0.1)', fill: true, tension: 0.3 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let value = context.parsed.y || 0;
+                                return (context.dataset.label || '') + ': ' + (value >= 1000000 ? (value / 1000000).toFixed(2) + ' Mbps' : (value / 1000).toFixed(2) + ' Kbps');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value >= 1000000 ? (value / 1000000).toFixed(1) + ' M' : (value / 1000).toFixed(0) + ' K';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    const modalEl = document.getElementById('modalTrafficMonitor');
+    if (modalEl) {
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+
+    if (trafficInterval) clearInterval(trafficInterval);
+    trafficInterval = setInterval(() => {
+        fetch('controllers/MikrotikController.php?action=api_traffic_monitor&id=' + id + '&interface=' + encodeURIComponent(interfaceName))
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const timeLabel = new Date().toLocaleTimeString('es-MX', { hour12: false });
+                    let rx = data.rx_bits || 0;
+                    let tx = data.tx_bits || 0;
+
+                    const rxEl = document.getElementById('tm-rx-text');
+                    const txEl = document.getElementById('tm-tx-text');
+                    if (rxEl) rxEl.innerText = rx >= 1000000 ? (rx / 1000000).toFixed(2) + ' Mbps' : (rx / 1000).toFixed(2) + ' Kbps';
+                    if (txEl) txEl.innerText = tx >= 1000000 ? (tx / 1000000).toFixed(2) + ' Mbps' : (tx / 1000).toFixed(2) + ' Kbps';
+
+                    if (chartTraffic) {
+                        if (chartTraffic.data.labels.length > MAX_DATA_POINTS) {
+                            chartTraffic.data.labels.shift();
+                            chartTraffic.data.datasets[0].data.shift();
+                            chartTraffic.data.datasets[1].data.shift();
+                        }
+                        chartTraffic.data.labels.push(timeLabel);
+                        chartTraffic.data.datasets[0].data.push(rx);
+                        chartTraffic.data.datasets[1].data.push(tx);
+                        chartTraffic.update();
+                    }
+                }
+            })
+            .catch(e => console.error('Error fetching traffic monitor:', e));
+    }, 1000);
+};
+
+window.stopTrafficMonitor = function() {
+    if (trafficInterval) {
+        clearInterval(trafficInterval);
+        trafficInterval = null;
+    }
+};
 
 window.refreshDetalles = function() {
-    // Reiniciar los componentes de la vista
     initDetallesModule();
-}
+};
 
-// Global actions
 window.rebootMikrotik = function(id) {
     Swal.fire({
         title: '¿Reiniciar Equipo?',
-        text: "Esta acción reiniciará el dispositivo inmediatamente.",
+        text: "Esta acción reiniciará el dispositivo MikroTik inmediatamente.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sí, reiniciar'
+        confirmButtonText: 'Sí, reiniciar',
+        cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {
             fetch('controllers/MikrotikController.php?action=api_reboot&id=' + id)
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'success') Swal.fire('Reiniciado', 'El equipo se está reiniciando.', 'success');
-                else Swal.fire('Error', data.error || 'Fallo al reiniciar', 'error');
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire('Reiniciado', 'El equipo está reiniciando.', 'success');
+                    } else {
+                        Swal.fire('Error', data.error || 'Fallo al reiniciar', 'error');
+                    }
+                })
+                .catch(err => Swal.fire('Error', 'Fallo de conexión', 'error'));
         }
     });
-}
+};
 
 window.backupMikrotik = function(id) {
     Swal.fire({
@@ -177,156 +370,32 @@ window.backupMikrotik = function(id) {
     });
 
     fetch('controllers/MikrotikController.php?action=api_backup&id=' + id)
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'success') {
-            Swal.close();
-            // Trigger download of the returned text
-            let blob = new Blob([data.content], {type: "text/plain;charset=utf-8"});
-            let url = window.URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = `backup_mikrotik_${id}.rsc`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        } else {
-            Swal.fire('Error', data.error || 'No se pudo generar el backup', 'error');
-        }
-    }).catch(err => Swal.fire('Error', 'Fallo de red', 'error'));
-}
-
-window.monitorTrafico = function(interfaceName) {
-    const id = document.getElementById('current_mikrotik_id').value;
-    document.getElementById('tm-interface-name').innerText = interfaceName;
-    
-    // Reset or init chart
-    if(chartTraffic) {
-        chartTraffic.destroy();
-    }
-    
-    const ctx = document.getElementById('chartTraffic').getContext('2d');
-    chartTraffic = new Chart(ctx, {
-        type: 'line',
-        data: { 
-            labels: [], 
-            datasets: [
-                { label: 'Descarga (RX)', data: [], borderColor: 'rgb(25, 135, 84)', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.1 },
-                { label: 'Subida (TX)', data: [], borderColor: 'rgb(13, 110, 253)', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.1 }
-            ] 
-        },
-        options: { 
-            animation: false, 
-            scales: { 
-                y: { 
-                    beginAtZero: true, 
-                    ticks: { 
-                        callback: function(value) { 
-                            return value >= 1000000 ? (value / 1000000).toFixed(1) + ' Mbps' : (value / 1000).toFixed(0) + ' Kbps'; 
-                        } 
-                    } 
-                } 
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let value = context.parsed.y;
-                            return value >= 1000000 ? (value / 1000000).toFixed(2) + ' Mbps' : (value / 1000).toFixed(2) + ' Kbps';
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    let modal = new bootstrap.Modal(document.getElementById('modalTrafficMonitor'));
-    modal.show();
-
-    if(trafficInterval) clearInterval(trafficInterval);
-    trafficInterval = setInterval(() => {
-        fetch('controllers/MikrotikController.php?action=api_traffic_monitor&id=' + id + '&interface=' + encodeURIComponent(interfaceName))
         .then(res => res.json())
         .then(data => {
-            if(data.status === 'success') {
-                const timeLabel = new Date().toLocaleTimeString();
-                let rx = data.rx_bits;
-                let tx = data.tx_bits;
-                
-                // Update text
-                document.getElementById('tm-rx-text').innerText = rx >= 1000000 ? (rx / 1000000).toFixed(2) + ' Mbps' : (rx / 1000).toFixed(2) + ' Kbps';
-                document.getElementById('tm-tx-text').innerText = tx >= 1000000 ? (tx / 1000000).toFixed(2) + ' Mbps' : (tx / 1000).toFixed(2) + ' Kbps';
-
-                if(chartTraffic.data.labels.length > MAX_DATA_POINTS) {
-                    chartTraffic.data.labels.shift();
-                    chartTraffic.data.datasets[0].data.shift();
-                    chartTraffic.data.datasets[1].data.shift();
-                }
-                chartTraffic.data.labels.push(timeLabel);
-                chartTraffic.data.datasets[0].data.push(rx);
-                chartTraffic.data.datasets[1].data.push(tx);
-                chartTraffic.update();
+            if (data.status === 'success') {
+                Swal.close();
+                let blob = new Blob([data.content], { type: "text/plain;charset=utf-8" });
+                let url = window.URL.createObjectURL(blob);
+                let a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_mikrotik_${id}.rsc`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } else {
+                Swal.fire('Error', data.error || 'No se pudo generar el backup', 'error');
             }
-        }).catch(e => console.log(e));
-    }, 1000);
-}
+        })
+        .catch(err => Swal.fire('Error', 'Fallo de red', 'error'));
+};
 
-window.stopTrafficMonitor = function() {
-    if(trafficInterval) {
-        clearInterval(trafficInterval);
-    }
-}
+window.initDetallesModule = initDetallesModule;
 
-
-
-// Clear interval when navigating away
-const originalLoadView = window.loadView;
-window.loadView = function(viewName, params = null) {
-    if(pingInterval) clearInterval(pingInterval);
-    if(trafficInterval) clearInterval(trafficInterval);
-    originalLoadView(viewName, params);
-}
-
-let chartFullScreenInstance = null;
-
-
-
-window.closeChartFullScreen = function() {
-    if(chartFullScreenInstance) {
-        chartFullScreenInstance.destroy();
-        chartFullScreenInstance = null;
-    }
-}
-
-window.zoomFullScreenChart = function(range) {
-    if(!chartFullScreenInstance) return;
-    
-    let labels = chartFullScreenInstance.data.labels;
-    if(!labels || labels.length === 0) return;
-    
-    // El último dato asumimos es "ahora"
-    let lastDate = new Date(labels[labels.length - 1]);
-    let pastDate = new Date(lastDate.getTime());
-    
-    if (range === '10m') pastDate.setMinutes(pastDate.getMinutes() - 10);
-    else if (range === '1h') pastDate.setHours(pastDate.getHours() - 1);
-    else if (range === '3h') pastDate.setHours(pastDate.getHours() - 3);
-    else if (range === '24h') pastDate.setHours(pastDate.getHours() - 24);
-    else if (range === '1w') pastDate.setDate(pastDate.getDate() - 7);
-    
-    chartFullScreenInstance.options.scales.x.min = pastDate.getTime();
-    chartFullScreenInstance.options.scales.x.max = lastDate.getTime() + (5 * 60 * 1000); // 5 mins extras visuales
-    chartFullScreenInstance.update();
-}
-
-window.resetFullScreenChartZoom = function() {
-    if(!chartFullScreenInstance) return;
-    delete chartFullScreenInstance.options.scales.x.min;
-    delete chartFullScreenInstance.options.scales.x.max;
-    if (chartFullScreenInstance.resetZoom) {
-        chartFullScreenInstance.resetZoom();
-    } else {
-        chartFullScreenInstance.update();
-    }
+// Limpiar intervalos al salir de la vista
+if (typeof window.clearEquiposDetallesIntervals !== 'function') {
+    window.clearEquiposDetallesIntervals = function() {
+        if (pingInterval) clearInterval(pingInterval);
+        if (trafficInterval) clearInterval(trafficInterval);
+    };
 }

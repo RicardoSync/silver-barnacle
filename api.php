@@ -477,6 +477,62 @@ switch ($action) {
         echo json_encode(array("status" => "success", "kpis" => $resumen, "data" => $servicios));
         break;
 
+    case 'trafico_servidor_local':
+        $interfaces = array();
+        $netDirs = @glob('/sys/class/net/*');
+        if (!empty($netDirs)) {
+            foreach ($netDirs as $dir) {
+                $iface = basename($dir);
+                $rx_file = "$dir/statistics/rx_bytes";
+                $tx_file = "$dir/statistics/tx_bytes";
+                if (@file_exists($rx_file) && @file_exists($tx_file)) {
+                    $rx_bytes = floatval(trim(@file_get_contents($rx_file)));
+                    $tx_bytes = floatval(trim(@file_get_contents($tx_file)));
+                    $interfaces[] = array(
+                        "interface" => $iface,
+                        "rx_bytes" => $rx_bytes,
+                        "tx_bytes" => $tx_bytes
+                    );
+                }
+            }
+        }
+        
+        if (empty($interfaces)) {
+            $rawDev = '';
+            if (@file_exists('/proc/net/dev') && @is_readable('/proc/net/dev')) {
+                $rawDev = @file_get_contents('/proc/net/dev');
+            }
+            if (empty($rawDev) && function_exists('shell_exec')) {
+                $rawDev = @shell_exec('cat /proc/net/dev 2>&1');
+            }
+            
+            if (!empty($rawDev)) {
+                $lines = explode("\n", trim($rawDev));
+                for ($i = 2; $i < count($lines); $i++) {
+                    $line = trim($lines[$i]);
+                    if (empty($line)) continue;
+                    $parts = preg_split('/\s+/', $line);
+                    if (count($parts) >= 10) {
+                        $iface = rtrim($parts[0], ':');
+                        $rx_bytes = floatval($parts[1]);
+                        $tx_bytes = floatval($parts[9]);
+                        $interfaces[] = array(
+                            "interface" => $iface,
+                            "rx_bytes" => $rx_bytes,
+                            "tx_bytes" => $tx_bytes
+                        );
+                    }
+                }
+            }
+        }
+
+        echo json_encode(array(
+            "status" => "success",
+            "timestamp" => microtime(true),
+            "interfaces" => $interfaces
+        ));
+        break;
+
     default:
         echo json_encode(array("status" => "error", "message" => "Acción no válida"));
         break;

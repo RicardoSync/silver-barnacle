@@ -217,8 +217,12 @@ function renderNodosHTML() {
 
         const iconClass = getNodoIconClass(nodo.tipo);
 
-        // Construcción del Tooltip / Popover de Detalles en Hover
+        // Construcción del Popover de Detalles al hacer Hover
         let detailsHtml = '';
+        let statusText = isOnline 
+            ? `<span class="badge bg-success me-1">Online</span> (${ms} ms)` 
+            : `<span class="badge bg-danger me-1">Caído</span>`;
+
         if (nodo.tipo_ref === 'mikrotik' && nodo.version_ros) {
             const ramTotalMb = Math.round(nodo.ram_total / (1024 * 1024));
             const ramLibreMb = Math.round(nodo.ram_libre / (1024 * 1024));
@@ -226,70 +230,53 @@ function renderNodosHTML() {
             const ramUsoPct = Math.round((ramUsoMb / ramTotalMb) * 100);
 
             detailsHtml = `
+                <div class="hover-stat-item"><strong>IP:</strong> ${escapeHtml(nodo.ip_address)}</div>
+                <div class="hover-stat-item"><strong>Estado:</strong> ${statusText}</div>
                 <div class="hover-stat-item"><strong>OS:</strong> RouterOS ${escapeHtml(nodo.version_ros)}</div>
                 <div class="hover-stat-item"><strong>Uptime:</strong> ${escapeHtml(nodo.uptime)}</div>
-                <div class="hover-stat-item">
+                <div class="hover-stat-item mt-1">
                     <strong>CPU:</strong> ${nodo.cpu_uso}%
                     <div class="progress progress-xs mt-1">
                         <div class="progress-bar bg-primary" style="width: ${nodo.cpu_uso}%"></div>
                     </div>
                 </div>
-                <div class="hover-stat-item">
-                    <strong>RAM:</strong> ${ramUsoMb}MB / ${ramTotalMb}MB (${ramUsoPct}%)
-                    <div class="progress progress-xs mt-1">
-                        <div class="progress-bar bg-success" style="width: ${ramUsoPct}%"></div>
-                    </div>
-                </div>
-                <div class="hover-actions-bar">
-                    <button class="btn btn-hover-action btn-outline-success" onclick="event.stopPropagation(); ejecutarHerramientaRed('ping', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-play-fill me-1"></i>Ping</button>
-                    <button class="btn btn-hover-action btn-outline-info text-dark" onclick="event.stopPropagation(); ejecutarHerramientaRed('traceroute', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-bezier2 me-1"></i>Trace</button>
-                </div>
             `;
         } else {
-            let statusText = isOnline ? `<span class="text-success"><i class="bi bi-circle-fill me-1 small"></i>Online</span>` : `<span class="text-danger"><i class="bi bi-circle-fill me-1 small"></i>Caído</span>`;
             let deviceLabel = nodo.tipo.toUpperCase();
             detailsHtml = `
                 <div class="hover-stat-item"><strong>Tipo:</strong> ${deviceLabel}</div>
-                <div class="hover-stat-item"><strong>Estado:</strong> ${statusText}</div>
                 <div class="hover-stat-item"><strong>IP:</strong> ${escapeHtml(nodo.ip_address)}</div>
-                ${isOnline && ms !== undefined ? `<div class="hover-stat-item"><strong>Latencia:</strong> ${ms} ms</div>` : ''}
-                <div class="hover-actions-bar">
-                    <button class="btn btn-hover-action btn-outline-success" onclick="event.stopPropagation(); ejecutarHerramientaRed('ping', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-play-fill me-1"></i>Ping</button>
-                    <button class="btn btn-hover-action btn-outline-info text-dark" onclick="event.stopPropagation(); ejecutarHerramientaRed('traceroute', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-bezier2 me-1"></i>Trace</button>
-                </div>
+                <div class="hover-stat-item"><strong>Estado:</strong> ${statusText}</div>
             `;
         }
+
+        const actionsHtml = `
+            <div class="hover-actions-bar">
+                <button class="btn btn-hover-action btn-outline-primary" onclick="event.stopPropagation(); prepararConectarDesde(${nodo.id})" title="Conectar"><i class="bi bi-link-45deg me-1"></i>Enlace</button>
+                <button class="btn btn-hover-action btn-outline-secondary" onclick="event.stopPropagation(); editarNodo(${nodo.id})" title="Editar"><i class="bi bi-pencil me-1"></i>Editar</button>
+                <button class="btn btn-hover-action btn-outline-danger" onclick="event.stopPropagation(); eliminarNodo(${nodo.id})" title="Eliminar"><i class="bi bi-trash me-1"></i>Borrar</button>
+                <button class="btn btn-hover-action btn-outline-success" onclick="event.stopPropagation(); ejecutarHerramientaRed('ping', '${escapeHtml(nodo.ip_address)}', '${escapeHtml(nodo.nombre)}')"><i class="bi bi-play-fill me-1"></i>Ping</button>
+            </div>
+        `;
 
         const popoverHtml = `
             <div class="node-hover-details">
                 <div class="hover-details-title">${escapeHtml(nodo.nombre)}</div>
                 <div class="hover-details-body">
                     ${detailsHtml}
+                    ${actionsHtml}
                 </div>
             </div>
         `;
 
         nodeEl.innerHTML = `
             ${popoverHtml}
-            <div class="node-header">
-                <div class="node-icon-wrapper device-type-${nodo.tipo}">
-                    <i class="bi ${iconClass}"></i>
-                    <div class="status-led-badge"></div>
-                </div>
+            <div class="node-icon-circle device-type-${nodo.tipo}">
+                <i class="bi ${iconClass}"></i>
+                <div class="status-led-badge"></div>
             </div>
-            <div class="node-body">
-                <div class="node-title" title="${escapeHtml(nodo.nombre)}">${escapeHtml(nodo.nombre)}</div>
-                <div class="node-ip">${escapeHtml(nodo.ip_address)}</div>
-                <div class="node-ping-info">
-                    ${isOnline ? `<span class="badge bg-success">${ms} ms</span>` :
-                      (topologíaState.pingMap[nodo.id] ? `<span class="badge bg-danger">Caído</span>` :
-                      `<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1" style="width:7px;height:7px;"></span>...</span>`)}
-                </div>
-            </div>
-            <div class="node-actions-menu">
-                <button class="btn btn-xs btn-outline-primary" onclick="event.stopPropagation(); prepararConectarDesde(${nodo.id})" title="Conectar"><i class="bi bi-link-45deg"></i></button>
-                <button class="btn btn-xs btn-outline-secondary" onclick="event.stopPropagation(); editarNodo(${nodo.id})" title="Editar"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-xs btn-outline-danger" onclick="event.stopPropagation(); eliminarNodo(${nodo.id})" title="Eliminar"><i class="bi bi-trash"></i></button>
+            <div class="node-label-pill" title="${escapeHtml(nodo.nombre)} (${escapeHtml(nodo.ip_address)})">
+                ${escapeHtml(nodo.nombre)}
             </div>
         `;
 
@@ -337,16 +324,14 @@ function renderEnlacesSVG() {
         const elOrigen = document.getElementById(`node-card-${origenNode.id}`);
         const elDestino = document.getElementById(`node-card-${destinoNode.id}`);
 
-        const widthOrigen = elOrigen ? elOrigen.offsetWidth : 140;
-        const heightOrigen = elOrigen ? elOrigen.offsetHeight : 110;
-        const widthDestino = elDestino ? elDestino.offsetWidth : 140;
-        const heightDestino = elDestino ? elDestino.offsetHeight : 110;
+        // Puntos centrales exactos de los círculos de íconos (72px ancho total, centro X: 36px, Y del centro del círculo: 27px)
+        const widthOrigen = elOrigen ? elOrigen.offsetWidth : 72;
+        const widthDestino = elDestino ? elDestino.offsetWidth : 72;
 
-        // Puntos centrales en las coordenadas locales del viewport
         const x1 = parseFloat(origenNode.pos_x) + widthOrigen / 2;
-        const y1 = parseFloat(origenNode.pos_y) + heightOrigen / 2;
+        const y1 = parseFloat(origenNode.pos_y) + 27; // 27px es la mitad del círculo de 54px
         const x2 = parseFloat(destinoNode.pos_x) + widthDestino / 2;
-        const y2 = parseFloat(destinoNode.pos_y) + heightDestino / 2;
+        const y2 = parseFloat(destinoNode.pos_y) + 27;
 
         // Determinar estado de conectividad entre ambos nodos
         const origenStatus = topologíaState.pingMap[origenNode.id]?.status === 'online';

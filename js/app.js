@@ -59,8 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadView(viewName, params);
 
                 // Actualizar clase activa en el menú lateral
-                document.querySelectorAll('#sidebar ul li').forEach(li => li.classList.remove('active'));
-                e.currentTarget.parentElement.classList.add('active');
+                document.querySelectorAll('.app-sidebar .nav-link').forEach(a => a.classList.remove('active'));
+                e.currentTarget.classList.add('active');
 
                 // Cerrar en móviles si se hace click
                 if (window.innerWidth <= 768) {
@@ -85,7 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
             window.clearPingMultiIntervals();
         }
 
-        let url = 'views/' + viewName + '.php';
+        let viewPath = viewName;
+        if (viewName === 'mikrotiks') viewPath = 'mikrotiks/lista';
+        if (viewName === 'mikrotik/detalles') viewPath = 'mikrotiks/detalles';
+        if (viewName === 'equipos') viewPath = 'equipos/lista';
+
+        let url = 'views/' + viewPath + '.php';
         if (params) {
             const queryParams = new URLSearchParams(params).toString();
             url += '?' + queryParams;
@@ -111,11 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initPlugins(viewName) {
-        if (viewName === 'mikrotiks') {
+        if (viewName === 'mikrotiks' || viewName === 'mikrotiks/lista') {
             if (typeof initMikrotikModule === 'function') {
                 initMikrotikModule();
             }
-        } else if (viewName === 'mikrotik/detalles') {
+        } else if (viewName === 'mikrotik/detalles' || viewName === 'mikrotiks/detalles') {
             if (typeof initDetallesModule === 'function') {
                 initDetallesModule();
             }
@@ -135,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof initAlertasModule === 'function') {
                 initAlertasModule();
             }
-        } else if (viewName === 'equipos/lista') {
+        } else if (viewName === 'equipos' || viewName === 'equipos/lista') {
             if (typeof initEquiposModule === 'function') {
                 initEquiposModule();
             }

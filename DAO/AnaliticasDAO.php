@@ -9,10 +9,13 @@ class AnaliticasDAO {
     }
 
     public function getTrafico($mikrotik_id, $interface = null, $horas = 4) {
+        $minutos = round(floatval($horas) * 60);
+        if ($minutos <= 0) $minutos = 240;
+
         $query = "SELECT interface, rx_bits, tx_bits, fecha_registro 
                   FROM historico_trafico 
                   WHERE mikrotik_id = :mikrotik_id 
-                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :horas HOUR) ";
+                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :minutos MINUTE) ";
         if ($interface) {
             $query .= "AND interface = :interface ";
         }
@@ -20,7 +23,7 @@ class AnaliticasDAO {
         
         $stmt = $this->con->prepare($query);
         $stmt->bindParam(':mikrotik_id', $mikrotik_id, PDO::PARAM_INT);
-        $stmt->bindParam(':horas', $horas, PDO::PARAM_INT);
+        $stmt->bindParam(':minutos', $minutos, PDO::PARAM_INT);
         if ($interface) {
             $stmt->bindParam(':interface', $interface, PDO::PARAM_STR);
         }
@@ -30,56 +33,68 @@ class AnaliticasDAO {
     }
 
     public function getPing($mikrotik_id, $horas = 4) {
+        $minutos = round(floatval($horas) * 60);
+        if ($minutos <= 0) $minutos = 240;
+
         $query = "SELECT tipo, ms, fecha_registro 
                   FROM historico_pings 
                   WHERE mikrotik_id = :mikrotik_id 
-                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :horas HOUR) 
+                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :minutos MINUTE) 
                   ORDER BY fecha_registro ASC";
         $stmt = $this->con->prepare($query);
         $stmt->bindParam(':mikrotik_id', $mikrotik_id, PDO::PARAM_INT);
-        $stmt->bindParam(':horas', $horas, PDO::PARAM_INT);
+        $stmt->bindParam(':minutos', $minutos, PDO::PARAM_INT);
         $stmt->execute();
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $this->downsamplePHP($data, $this->getIntervalForHours($horas), 'tipo');
     }
 
     public function getPingEquipo($equipo_id, $horas = 4) {
+        $minutos = round(floatval($horas) * 60);
+        if ($minutos <= 0) $minutos = 240;
+
         $query = "SELECT ms, fecha_registro 
                   FROM historico_pings_equipos 
                   WHERE equipo_id = :equipo_id 
-                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :horas HOUR) 
+                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :minutos MINUTE) 
                   ORDER BY fecha_registro ASC";
         $stmt = $this->con->prepare($query);
         $stmt->bindParam(':equipo_id', $equipo_id, PDO::PARAM_INT);
-        $stmt->bindParam(':horas', $horas, PDO::PARAM_INT);
+        $stmt->bindParam(':minutos', $minutos, PDO::PARAM_INT);
         $stmt->execute();
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $this->downsamplePHP($data, $this->getIntervalForHours($horas));
     }
 
     public function getRecursos($mikrotik_id, $horas = 4) {
+        $minutos = round(floatval($horas) * 60);
+        if ($minutos <= 0) $minutos = 240;
+
         $query = "SELECT cpu_uso, ram_total, ram_libre, fecha_registro 
                   FROM historico_recursos 
                   WHERE mikrotik_id = :mikrotik_id 
-                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :horas HOUR) 
+                  AND fecha_registro >= DATE_SUB(NOW(), INTERVAL :minutos MINUTE) 
                   ORDER BY fecha_registro ASC";
         $stmt = $this->con->prepare($query);
         $stmt->bindParam(':mikrotik_id', $mikrotik_id, PDO::PARAM_INT);
-        $stmt->bindParam(':horas', $horas, PDO::PARAM_INT);
+        $stmt->bindParam(':minutos', $minutos, PDO::PARAM_INT);
         $stmt->execute();
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $this->downsamplePHP($data, $this->getIntervalForHours($horas));
     }
 
     public function getTopCaidas($horas = 4) {
+        $minutos = round(floatval($horas) * 60);
+        if ($minutos <= 0) $minutos = 240;
+
         $query = "SELECT nombre_nodo, tipo_nodo, COUNT(*) as total_caidas, SUM(duracion_minutos) as total_minutos 
                   FROM historial_caidas 
-                  WHERE fecha_caida >= DATE_SUB(NOW(), INTERVAL :horas HOUR) 
+                  WHERE fecha_caida >= DATE_SUB(NOW(), INTERVAL :minutos MINUTE) 
                   GROUP BY nombre_nodo, tipo_nodo 
                   ORDER BY total_caidas DESC 
                   LIMIT 10";
         $stmt = $this->con->prepare($query);
-        $stmt->bindParam(':horas', $horas, PDO::PARAM_INT);
+        $stmt->bindParam(':minutos', $minutos, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

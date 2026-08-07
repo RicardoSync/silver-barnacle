@@ -1,36 +1,47 @@
 let chartCaidas = null;
+let chartTopCaidasNodos = null;
 let tablaHistorial = null;
+let hcChartFullScreenInstance = null;
 
 function initHistorialCaidasModule() {
-    cargarKPIs();
-    cargarGrafica(7);
-    inicializarTabla();
-
-    $('#selectDiasGrafica').on('change', function() {
-        cargarGrafica($(this).val());
-    });
+    cargarTodoHistorialCaidas();
 }
 
-function cargarKPIs() {
+function cargarTodoHistorialCaidas() {
+    const horas = $('#selectHorasHistorialCaidas').val() || 24;
+    cargarKPIs(horas);
+    cargarGrafica(horas);
+    cargarTabla(horas);
+}
+
+function cargarKPIs(horas) {
     $.ajax({
-        url: 'controllers/HistorialCaidaController.php?action=kpis',
+        url: `controllers/HistorialCaidaController.php?action=kpis&horas=${horas}`,
         type: 'GET',
         dataType: 'json',
         success: function(data) {
-            $('#kpiActivas').text(data.activas);
-            $('#kpiHoy').text(data.hoy);
-            $('#kpiPromedio').text(data.promedio_minutos);
+            $('#kpiActivas').html(data.activas > 0 ? `<span class="text-danger"><i class="bi bi-circle-fill fs-6 me-1 spinner-grow text-danger" style="width: 12px; height: 12px;"></i>${data.activas}</span>` : '0');
+            $('#kpiRango').text(data.rango || 0);
+            $('#kpiPromedio').text(data.promedio_minutos ? `${data.promedio_minutos} min` : '0 min');
+            $('#kpiMax').text(data.max_minutos ? `${data.max_minutos} min` : '0 min');
+        },
+        error: function(err) {
+            console.error('Error al cargar KPIs de caídas:', err);
         }
     });
 }
 
-function cargarGrafica(dias) {
+function cargarGrafica(horas) {
     $.ajax({
-        url: 'controllers/HistorialCaidaController.php?action=grafica&dias=' + dias,
+        url: `controllers/HistorialCaidaController.php?action=grafica&horas=${horas}`,
         type: 'GET',
         dataType: 'json',
         success: function(data) {
-            renderGrafica(data.labels, data.data, data.nodos);
+            renderGraficaEventos(data.labels || [], data.data || [], data.nodos || [], data.tipos || [], data.estados || []);
+            renderGraficaTopNodos(data.data || [], data.nodos || []);
+        },
+        error: function(err) {
+            console.error('Error al cargar gráfica de caídas:', err);
         }
     });
 }
@@ -40,49 +51,56 @@ const caidasChartTimeScale = {
     time: {
         tooltipFormat: 'yyyy-MM-dd HH:mm',
         displayFormats: { 
-            hour: 'HH:mm', 
             minute: 'HH:mm',
+            hour: 'HH:mm', 
             day: 'MMM d'
         }
     }
 };
 
-const caidasChartZoomOptions = {
-    pan: { enabled: true, mode: 'x' },
-    zoom: { wheel: { enabled: true }, drag: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
-};
-
-function renderGrafica(labels, data, nodos) {
-    const ctx = document.getElementById('graficaCaidas').getContext('2d');
+function renderGraficaEventos(labels, data, nodos, tipos, estados) {
+    const canvas = document.getElementById('graficaCaidas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     
     if (chartCaidas) {
         chartCaidas.destroy();
+        chartCaidas = null;
     }
 
+    const backgroundColors = estados.map(st => st === 'en_curso' ? 'rgba(220, 53, 69, 0.85)' : 'rgba(255, 193, 7, 0.85)');
+    const borderColors = estados.map(st => st === 'en_curso' ? '#dc3545' : '#ffc107');
+
     chartCaidas = new Chart(ctx, {
-        type: 'bar', // Barra para representar la duración de cada evento discreto
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Duración (min)',
+                label: 'Duración Caída (min)',
                 data: data,
-                backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                borderColor: '#dc3545',
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
                 borderWidth: 1,
-                barThickness: 6 // Barras delgadas
+                barThickness: Math.min(25, Math.max(6, Math.floor(600 / (labels.length || 1))))
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                zoom: caidasChartZoomOptions,
                 tooltip: {
                     callbacks: {
-                        afterLabel: function(context) {
-                            // Mostrar el nombre del nodo en el tooltip
-                            return 'Nodo: ' + nodos[context.dataIndex];
+                        title: function(items) {
+                            if (!items || !items[0]) return '';
+                            const idx = items[0].dataIndex;
+                            return `${nodos[idx]} (${tipos[idx] ? tipos[idx].toUpperCase() : 'NODO'})`;
+                        },
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            const st = estados[idx] === 'en_curso' ? 'En Curso (Activa)' : 'Resuelta';
+                            const mins = context.raw;
+                            return `Duración: ${mins} min | Estado: ${st}`;
                         }
                     }
                 }
@@ -91,7 +109,7 @@ function renderGrafica(labels, data, nodos) {
                 x: caidasChartTimeScale,
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Minutos' },
+                    title: { display: true, text: 'Duración (Minutos)' },
                     grid: { color: 'rgba(0,0,0,0.05)' }
                 }
             }
@@ -99,23 +117,143 @@ function renderGrafica(labels, data, nodos) {
     });
 }
 
-function renderizarGrafica(labels, data) {
-    // Usada como proxy para mantener la compatibilidad del signature si se llamó externamente,
-    // aunque la llamada en cargarGrafica la cambié a pasar los nodos.
+function renderGraficaTopNodos(data, nodos) {
+    const canvas = document.getElementById('graficaTopCaidasNodos');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (chartTopCaidasNodos) {
+        chartTopCaidasNodos.destroy();
+        chartTopCaidasNodos = null;
+    }
+
+    // Agrupar duración acumulada por nodo
+    const nodeTotals = {};
+    for (let i = 0; i < nodos.length; i++) {
+        const name = nodos[i] || 'Desconocido';
+        const val = data[i] || 0;
+        nodeTotals[name] = (nodeTotals[name] || 0) + val;
+    }
+
+    // Ordenar de mayor a menor y tomar top 5
+    const sorted = Object.entries(nodeTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topLabels = sorted.map(item => item[0]);
+    const topData = sorted.map(item => item[1]);
+
+    const palette = ['#dc3545', '#fd7e14', '#ffc107', '#0d6efd', '#6f42c1'];
+
+    chartTopCaidasNodos = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: topLabels.length > 0 ? topLabels : ['Sin Caídas'],
+            datasets: [{
+                data: topData.length > 0 ? topData : [1],
+                backgroundColor: topData.length > 0 ? palette.slice(0, topData.length) : ['#198754'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (topData.length === 0) return 'Sin eventos de caída';
+                            return ` ${context.label}: ${context.raw} min acumulados`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
-let hcChartFullScreenInstance = null;
+function cargarTabla(horas) {
+    if ($.fn.DataTable.isDataTable('#tablaHistorial')) {
+        $('#tablaHistorial').DataTable().destroy();
+    }
+
+    tablaHistorial = $('#tablaHistorial').DataTable({
+        ajax: {
+            url: `controllers/HistorialCaidaController.php?action=listar&horas=${horas}`,
+            dataSrc: 'data'
+        },
+        columns: [
+            { 
+                data: 'nombre_nodo',
+                render: function(data, type, row) {
+                    return `<span class="fw-bold text-dark"><i class="bi bi-hdd-network me-1 text-primary"></i>${escapeHtml(data)}</span>`;
+                }
+            },
+            { 
+                data: 'tipo_nodo',
+                render: function(data) {
+                    const t = (data || '').toLowerCase();
+                    return t === 'mikrotik' 
+                        ? `<span class="badge bg-primary"><i class="bi bi-router me-1"></i>MikroTik</span>`
+                        : `<span class="badge bg-info text-white"><i class="bi bi-hdd me-1"></i>Equipo</span>`;
+                }
+            },
+            { data: 'fecha_caida' },
+            { 
+                data: 'fecha_recuperacion',
+                render: function(data) {
+                    return data ? data : `<span class="text-danger fw-semibold"><i class="bi bi-circle-fill fs-6 me-1 spinner-grow text-danger" style="width: 10px; height: 10px;"></i>En curso...</span>`;
+                }
+            },
+            { 
+                data: 'duracion_minutos',
+                render: function(data, type, row) {
+                    if (row.estado === 'en_curso') return '<span class="badge bg-secondary">-</span>';
+                    return `<span class="fw-semibold text-dark">${formatearDuracion(data)}</span>`;
+                }
+            },
+            { 
+                data: 'estado',
+                render: function(data) {
+                    if (data === 'en_curso') {
+                        return `<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle me-1"></i>En Curso</span>`;
+                    } else {
+                        return `<span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Resuelta</span>`;
+                    }
+                }
+            }
+        ],
+        order: [[2, 'desc']],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+        }
+    });
+}
+
+function formatearDuracion(minutos) {
+    const mins = parseInt(minutos) || 0;
+    if (mins < 60) {
+        return `${mins} min`;
+    }
+    const horas = Math.floor(mins / 60);
+    const restoMins = mins % 60;
+    return `${horas} hr ${restoMins > 0 ? `${restoMins} min` : ''}`;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 window.openHistorialChartFullScreen = function() {
-    if(!chartCaidas) return;
+    if (!chartCaidas) return;
     
-    if(hcChartFullScreenInstance) {
+    if (hcChartFullScreenInstance) {
         hcChartFullScreenInstance.destroy();
+        hcChartFullScreenInstance = null;
     }
 
     const ctx = document.getElementById('chartFullScreenCanvas').getContext('2d');
     
-    let newOptions = Object.assign({}, chartCaidas.config.options);
+    let newOptions = JSON.parse(JSON.stringify(chartCaidas.config.options));
     newOptions.responsive = true;
     newOptions.maintainAspectRatio = false;
     
@@ -127,7 +265,7 @@ window.openHistorialChartFullScreen = function() {
             borderColor: ds.borderColor,
             backgroundColor: ds.backgroundColor,
             borderWidth: ds.borderWidth,
-            barThickness: 10 // Un poco más gruesas en full screen
+            barThickness: 12
         }))
     };
     
@@ -139,101 +277,14 @@ window.openHistorialChartFullScreen = function() {
 
     let modal = new bootstrap.Modal(document.getElementById('modalChartFullScreen'));
     modal.show();
-}
+};
 
 window.closeHistorialChartFullScreen = function() {
-    if(hcChartFullScreenInstance) {
+    if (hcChartFullScreenInstance) {
         hcChartFullScreenInstance.destroy();
         hcChartFullScreenInstance = null;
     }
-}
+};
 
-window.zoomHistorialFullScreenChart = function(range) {
-    if(!hcChartFullScreenInstance) return;
-    
-    let labels = hcChartFullScreenInstance.data.labels;
-    if(!labels || labels.length === 0) return;
-    
-    let lastDate = new Date(); // Asumimos 'ahora' para monitoreo
-    let pastDate = new Date();
-    
-    if (range === '10m') pastDate.setMinutes(pastDate.getMinutes() - 10);
-    else if (range === '1h') pastDate.setHours(pastDate.getHours() - 1);
-    else if (range === '3h') pastDate.setHours(pastDate.getHours() - 3);
-    else if (range === '24h') pastDate.setHours(pastDate.getHours() - 24);
-    else if (range === '1w') pastDate.setDate(pastDate.getDate() - 7);
-    
-    hcChartFullScreenInstance.options.scales.x.min = pastDate.getTime();
-    hcChartFullScreenInstance.options.scales.x.max = lastDate.getTime();
-    hcChartFullScreenInstance.update();
-}
-
-window.resetHistorialFullScreenChartZoom = function() {
-    if(!hcChartFullScreenInstance) return;
-    delete hcChartFullScreenInstance.options.scales.x.min;
-    delete hcChartFullScreenInstance.options.scales.x.max;
-    if (hcChartFullScreenInstance.resetZoom) {
-        hcChartFullScreenInstance.resetZoom();
-    } else {
-        hcChartFullScreenInstance.update();
-    }
-}
-
-function inicializarTabla() {
-    if ($.fn.DataTable.isDataTable('#tablaHistorial')) {
-        $('#tablaHistorial').DataTable().destroy();
-    }
-
-    tablaHistorial = $('#tablaHistorial').DataTable({
-        ajax: {
-            url: 'controllers/HistorialCaidaController.php?action=listar',
-            dataSrc: 'data'
-        },
-        columns: [
-            { data: 'nombre_nodo' },
-            { 
-                data: 'tipo_nodo',
-                render: function(data) {
-                    return data;
-                }
-            },
-            { data: 'fecha_caida' },
-            { 
-                data: 'fecha_recuperacion',
-                render: function(data) {
-                    return data ? data : `<span class="text-muted fst-italic">En curso...</span>`;
-                }
-            },
-            { 
-                data: 'duracion_minutos',
-                render: function(data, type, row) {
-                    if (row.estado === 'en_curso') return '-';
-                    return formatearDuracion(data);
-                }
-            },
-            { 
-                data: 'estado',
-                render: function(data) {
-                    if (data === 'en_curso') {
-                        return `<span class="badge bg-danger">En Curso</span>`;
-                    } else {
-                        return `<span class="badge bg-success">Resuelta</span>`;
-                    }
-                }
-            }
-        ],
-        order: [[2, 'desc']], // Ordenar por fecha_caida descendente
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
-        }
-    });
-}
-
-function formatearDuracion(minutos) {
-    if (minutos < 60) {
-        return `${minutos} min`;
-    }
-    const horas = Math.floor(minutos / 60);
-    const mins = minutos % 60;
-    return `${horas} hr ${mins > 0 ? `${mins} min` : ''}`;
-}
+window.initHistorialCaidasModule = initHistorialCaidasModule;
+window.cargarTodoHistorialCaidas = cargarTodoHistorialCaidas;

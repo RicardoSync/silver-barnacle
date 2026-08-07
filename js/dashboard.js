@@ -1,5 +1,6 @@
 let dashboardInterval;
 let trafficRealtimeInterval;
+let serverTrafficInterval;
 let clockInterval;
 let mikrotikDialsInterval;
 let previousNodeStates = {};
@@ -7,11 +8,20 @@ let currentDashboardFilter = 'all';
 let currentDashboardSearch = '';
 let lastFetchedNodes = [];
 let chartPingRealtime = null;
+let chartServerTrafficRealtime = null;
+let lastServerTrafficSample = null;
+let selectedServerIface = 'total';
 
 let pingChartData = {
     labels: [],
     google: [],
     cloudflare: []
+};
+
+let serverTrafficChartData = {
+    labels: [],
+    rx: [],
+    tx: []
 };
 
 function initDashboardModule() {
@@ -21,18 +31,26 @@ function initDashboardModule() {
     // 2. Inicializar gráfica real-time de pings
     initRealtimePingCharts();
 
-    // 3. Cargar datos generales
+    // 3. Inicializar gráfica real-time de tráfico servidor local
+    initServerTrafficChart();
+    fetchServerTraffic();
+
+    // 4. Cargar datos generales
     loadDashboardData();
 
     if (dashboardInterval) clearInterval(dashboardInterval);
-    // Refresh general cada 15 segundos
-    dashboardInterval = setInterval(loadDashboardData, 15000);
+    // Refresh general cada 2 segundos por AJAX
+    dashboardInterval = setInterval(loadDashboardData, 2000);
 
     if (trafficRealtimeInterval) clearInterval(trafficRealtimeInterval);
-    // Refresh tráfico en tiempo real cada 1.2 segundos (1200 ms)
-    trafficRealtimeInterval = setInterval(fetchRealtimePings, 1200);
+    // Refresh pings 8.8.8.8 & 1.1.1.1 cada 1 segundo por AJAX
+    trafficRealtimeInterval = setInterval(fetchRealtimePings, 1000);
 
-    // 4. Inicializar clima
+    if (serverTrafficInterval) clearInterval(serverTrafficInterval);
+    // Refresh tráfico de servidor local cada 2 segundos por AJAX
+    serverTrafficInterval = setInterval(fetchServerTraffic, 2000);
+
+    // 5. Inicializar clima
     initDashboardWeather();
 }
 
@@ -284,6 +302,188 @@ async function fetchRealtimePings() {
     }
 }
 
+function initServerTrafficChart() {
+    const ctx = document.getElementById('chart-server-traffic-realtime');
+    if (!ctx) return;
+    const canvasCtx = ctx.getContext('2d');
+
+    let gradientRx = canvasCtx.createLinearGradient(0, 0, 0, 180);
+    gradientRx.addColorStop(0, 'rgba(25, 135, 84, 0.25)');
+    gradientRx.addColorStop(1, 'rgba(25, 135, 84, 0.0)');
+
+    let gradientTx = canvasCtx.createLinearGradient(0, 0, 0, 180);
+    gradientTx.addColorStop(0, 'rgba(13, 202, 240, 0.25)');
+    gradientTx.addColorStop(1, 'rgba(13, 202, 240, 0.0)');
+
+    if (chartServerTrafficRealtime) chartServerTrafficRealtime.destroy();
+
+    chartServerTrafficRealtime = new Chart(canvasCtx, {
+        type: 'line',
+        data: {
+            labels: serverTrafficChartData.labels,
+            datasets: [
+                {
+                    label: 'Descarga (RX)',
+                    data: serverTrafficChartData.rx,
+                    borderColor: '#198754',
+                    backgroundColor: gradientRx,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    pointHoverRadius: 4
+                },
+                {
+                    label: 'Carga (TX)',
+                    data: serverTrafficChartData.tx,
+                    borderColor: '#0dcaf0',
+                    backgroundColor: gradientTx,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    pointHoverRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: { display: true, position: 'top', labels: { font: { size: 11 } } },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                const val = context.parsed.y;
+                                label += val >= 1000 ? (val / 1000).toFixed(2) + ' Mbps' : val.toFixed(1) + ' Kbps';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 9 }, maxTicksLimit: 12 } },
+                y: {
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: {
+                        font: { size: 9 },
+                        callback: function(value) {
+                            return value >= 1000 ? (value / 1000).toFixed(1) + ' M' : value + ' K';
+                        }
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+async function fetchServerTraffic() {
+    try {
+        const res = await fetch('api.php?action=trafico_servidor_local');
+        const json = await res.json();
+        if (json.status !== 'success' || !Array.isArray(json.interfaces)) return;
+
+        const timeStr = new Date().toLocaleTimeString('es-MX', { hour12: false });
+        const nowTs = json.timestamp;
+
+        // Poblar selector de interfaces si aún no tiene las opciones
+        const select = document.getElementById('select-server-iface');
+        if (select && select.options.length <= 1) {
+            json.interfaces.forEach(ifaceObj => {
+                const opt = document.createElement('option');
+                opt.value = ifaceObj.interface;
+                opt.textContent = ifaceObj.interface;
+                select.appendChild(opt);
+            });
+        }
+
+        if (lastServerTrafficSample) {
+            const timeDiff = nowTs - lastServerTrafficSample.timestamp;
+            if (timeDiff > 0) {
+                let currentRxRateKbps = 0;
+                let currentTxRateKbps = 0;
+
+                const selected = selectedServerIface;
+
+                json.interfaces.forEach(currIface => {
+                    const prevIface = lastServerTrafficSample.interfaces.find(i => i.interface === currIface.interface);
+                    if (prevIface) {
+                        if (selected === 'total' || selected === currIface.interface) {
+                            const rxDiff = Math.max(0, currIface.rx_bytes - prevIface.rx_bytes);
+                            const txDiff = Math.max(0, currIface.tx_bytes - prevIface.tx_bytes);
+
+                            currentRxRateKbps += (rxDiff * 8 / 1024) / timeDiff;
+                            currentTxRateKbps += (txDiff * 8 / 1024) / timeDiff;
+                        }
+                    }
+                });
+
+                currentRxRateKbps = Math.round(currentRxRateKbps * 10) / 10;
+                currentTxRateKbps = Math.round(currentTxRateKbps * 10) / 10;
+
+                const rxValEl = document.getElementById('server-traffic-rx-val');
+                const txValEl = document.getElementById('server-traffic-tx-val');
+
+                if (rxValEl) {
+                    const rxTxt = currentRxRateKbps >= 1000
+                        ? (currentRxRateKbps / 1000).toFixed(2) + ' Mbps'
+                        : currentRxRateKbps + ' Kbps';
+                    rxValEl.innerHTML = `<i class="bi bi-download me-1"></i>RX: ${rxTxt}`;
+                }
+
+                if (txValEl) {
+                    const txTxt = currentTxRateKbps >= 1000
+                        ? (currentTxRateKbps / 1000).toFixed(2) + ' Mbps'
+                        : currentTxRateKbps + ' Kbps';
+                    txValEl.innerHTML = `<i class="bi bi-upload me-1"></i>TX: ${txTxt}`;
+                }
+
+                if (chartServerTrafficRealtime) {
+                    serverTrafficChartData.labels.push(timeStr);
+                    serverTrafficChartData.rx.push(currentRxRateKbps);
+                    serverTrafficChartData.tx.push(currentTxRateKbps);
+
+                    if (serverTrafficChartData.labels.length > 30) {
+                        serverTrafficChartData.labels.shift();
+                        serverTrafficChartData.rx.shift();
+                        serverTrafficChartData.tx.shift();
+                    }
+
+                    chartServerTrafficRealtime.update();
+                }
+            }
+        }
+
+        lastServerTrafficSample = {
+            timestamp: nowTs,
+            interfaces: json.interfaces
+        };
+    } catch (e) {
+        console.error('Error fetching server traffic:', e);
+    }
+}
+
+window.onServerIfaceChange = function() {
+    const select = document.getElementById('select-server-iface');
+    if (select) {
+        selectedServerIface = select.value;
+        serverTrafficChartData.labels = [];
+        serverTrafficChartData.rx = [];
+        serverTrafficChartData.tx = [];
+        if (chartServerTrafficRealtime) {
+            chartServerTrafficRealtime.update();
+        }
+    }
+};
+
 window.setDashboardFilter = function (filter) {
     currentDashboardFilter = filter;
 
@@ -377,12 +577,12 @@ function loadDashboardData() {
                         const cpuB = b.cpu_uso !== null ? parseInt(b.cpu_uso) : 0;
                         return cpuB - cpuA;
                     });
-                    const top3 = mikrotiksOnly.slice(0, 3);
-                    if (top3.length === 0) {
+                    const sortedMikrotiks = mikrotiksOnly;
+                    if (sortedMikrotiks.length === 0) {
                         topCpuContainer.innerHTML = '<div class="text-center py-3 text-muted small">No hay nodos MikroTik registrados.</div>';
                     } else {
                         let topHtml = '';
-                        top3.forEach(mk => {
+                        sortedMikrotiks.forEach(mk => {
                             const cpu = mk.cpu_uso || 0;
                             const barColor = cpu > 80 ? 'bg-danger' : (cpu > 50 ? 'bg-warning' : 'bg-success');
                             topHtml += `
@@ -620,6 +820,7 @@ function createHexNodeHtml(n) {
 window.clearDashboardIntervals = function () {
     if (dashboardInterval) clearInterval(dashboardInterval);
     if (trafficRealtimeInterval) clearInterval(trafficRealtimeInterval);
+    if (serverTrafficInterval) clearInterval(serverTrafficInterval);
     if (clockInterval) clearInterval(clockInterval);
     if (mikrotikDialsInterval) clearInterval(mikrotikDialsInterval);
     hideHexTooltip();

@@ -11,6 +11,17 @@ body {
     color: var(--text-color);
 }
 
+/* Fix AdminLTE 4 info-box rounded-circle oval stretching */
+.info-box .info-box-icon.rounded-circle {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    flex-shrink: 0;
+    align-self: center;
+    border-radius: 50% !important;
+}
+
 /* Loader */
 #loader-wrapper {
     position: fixed;

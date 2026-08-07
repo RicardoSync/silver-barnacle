@@ -12,8 +12,8 @@ switch ($action) {
         $controller->obtenerKPIs();
         break;
     case 'grafica':
-        $dias = isset($_GET['dias']) ? (int)$_GET['dias'] : 7;
-        $controller->obtenerGrafica($dias);
+        $horas = isset($_GET['horas']) ? floatval($_GET['horas']) : (isset($_GET['dias']) ? floatval($_GET['dias']) * 24 : 24);
+        $controller->obtenerGrafica($horas);
         break;
     case 'activas':
         $controller->obtenerActivas();
@@ -28,32 +28,40 @@ class HistorialCaidaController {
     }
 
     public function listar() {
-        $datos = $this->dao->listarTodo();
+        $horas = isset($_GET['horas']) ? floatval($_GET['horas']) : 24;
+        $datos = $this->dao->listarPorTiempo($horas);
         echo json_encode(["data" => $datos]);
     }
 
     public function obtenerKPIs() {
-        $kpis = $this->dao->obtenerKPIs();
+        $horas = isset($_GET['horas']) ? floatval($_GET['horas']) : 24;
+        $kpis = $this->dao->obtenerKPIs($horas);
         echo json_encode($kpis);
     }
 
-    public function obtenerGrafica($dias) {
-        $datosGrafica = $this->dao->obtenerDatosGrafica($dias);
+    public function obtenerGrafica($horas) {
+        $datosGrafica = $this->dao->obtenerDatosGrafica($horas);
         
         $labels = [];
         $data = [];
         $nodos = [];
+        $tipos = [];
+        $estados = [];
 
         foreach ($datosGrafica as $row) {
-            $labels[] = str_replace(' ', 'T', $row['fecha']); // Formato ISO para ChartJS time scale
+            $labels[] = str_replace(' ', 'T', $row['fecha']); // ISO format for Chart.js
             $data[] = (int)$row['valor'];
             $nodos[] = $row['nombre_nodo'];
+            $tipos[] = $row['tipo_nodo'];
+            $estados[] = $row['estado'];
         }
 
         echo json_encode([
             "labels" => $labels,
             "data" => $data,
-            "nodos" => $nodos
+            "nodos" => $nodos,
+            "tipos" => $tipos,
+            "estados" => $estados
         ]);
     }
 
