@@ -28,6 +28,34 @@ function initWhatsappConfigModule() {
             }
         });
     });
+    // Listener para enviar mensaje de prueba
+    $('#formTestWhatsapp').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        const btn = $(this).find('button[type="submit"]');
+        const originalText = btn.html();
+        btn.html('<span class="spinner-border spinner-border-sm"></span> Enviando...').prop('disabled', true);
+
+        $.ajax({
+            url: 'controllers/WhatsappConfigController.php?action=enviar_prueba',
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#modalTestWhatsapp').modal('hide');
+                    Swal.fire('¡Enviado!', response.message, 'success');
+                } else {
+                    Swal.fire('Error al Enviar', response.message || 'No se pudo enviar el mensaje', 'error');
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'No se pudo conectar con el controlador de WhatsApp', 'error');
+            },
+            complete: function() {
+                btn.html(originalText).prop('disabled', false);
+            }
+        });
+    });
 }
 
 function cargarConfiguracion() {
@@ -52,3 +80,9 @@ function cargarConfiguracion() {
         }
     });
 }
+
+function openModalTestWhatsapp() {
+    $('#test-telefono').val('');
+    $('#modalTestWhatsapp').modal('show');
+}
+

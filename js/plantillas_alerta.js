@@ -50,38 +50,45 @@ function initPlantillasAlertaModule() {
         }
     });
 
-    $('#formPlantilla').off('submit').on('submit', function(e) {
+    $('#formNuevaPlantilla').off('submit').on('submit', function(e) {
         e.preventDefault();
-        const btn = $(this).find('button[type="submit"]');
-        const originalText = btn.html();
-        btn.html('<span class="spinner-border spinner-border-sm"></span> Guardando...').prop('disabled', true);
+        savePlantillaForm(this, '#modalNuevaPlantilla');
+    });
 
-        $.ajax({
-            url: 'controllers/PlantillaAlertaController.php?action=guardar',
-            type: 'POST',
-            data: $(this).serialize(),
-            dataType: 'json',
-            success: function(response) {
-                if(response.status === 'success') {
-                    $('#modalPlantilla').modal('hide');
-                    tablaPlantillas.ajax.reload();
-                    Swal.fire('Éxito', response.message, 'success');
-                } else {
-                    Swal.fire('Error', response.message, 'error');
-                }
-            },
-            complete: function() {
-                btn.html(originalText).prop('disabled', false);
+    $('#formEditarPlantilla').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        savePlantillaForm(this, '#modalEditarPlantilla');
+    });
+}
+
+function savePlantillaForm(formElem, modalId) {
+    const btn = $(formElem).find('button[type="submit"]');
+    const originalText = btn.html();
+    btn.html('<span class="spinner-border spinner-border-sm"></span> Guardando...').prop('disabled', true);
+
+    $.ajax({
+        url: 'controllers/PlantillaAlertaController.php?action=guardar',
+        type: 'POST',
+        data: $(formElem).serialize(),
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'success') {
+                $(modalId).modal('hide');
+                tablaPlantillas.ajax.reload();
+                Swal.fire('Éxito', response.message, 'success');
+            } else {
+                Swal.fire('Error', response.message, 'error');
             }
-        });
+        },
+        complete: function() {
+            btn.html(originalText).prop('disabled', false);
+        }
     });
 }
 
 window.openModalNuevaPlantilla = function() {
-    $('#formPlantilla')[0].reset();
-    $('#plantilla_id').val('');
-    $('#modalPlantillaTitle').html('<i class="bi bi-chat-right-text-fill"></i> Registrar Plantilla');
-    $('#modalPlantilla').modal('show');
+    if ($('#formNuevaPlantilla').length) $('#formNuevaPlantilla')[0].reset();
+    $('#modalNuevaPlantilla').modal('show');
 };
 
 window.editarPlantilla = function(id) {
@@ -90,12 +97,11 @@ window.editarPlantilla = function(id) {
         type: 'GET',
         dataType: 'json',
         success: function(data) {
-            $('#plantilla_id').val(data.id);
-            $('#plantilla_nombre').val(data.nombre);
-            $('#plantilla_minutos').val(data.minutos);
-            $('#plantilla_mensaje').val(data.mensaje);
-            $('#modalPlantillaTitle').html('<i class="bi bi-pencil-square"></i> Editar Plantilla');
-            $('#modalPlantilla').modal('show');
+            $('#edit_plantilla_id').val(data.id);
+            $('#edit_plantilla_nombre').val(data.nombre);
+            $('#edit_plantilla_minutos').val(data.minutos);
+            $('#edit_plantilla_mensaje').val(data.mensaje);
+            $('#modalEditarPlantilla').modal('show');
         }
     });
 };

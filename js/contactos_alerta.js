@@ -30,38 +30,45 @@ function initContactosAlertaModule() {
         }
     });
 
-    $('#formContacto').off('submit').on('submit', function(e) {
+    $('#formNuevoContacto').off('submit').on('submit', function(e) {
         e.preventDefault();
-        const btn = $(this).find('button[type="submit"]');
-        const originalText = btn.html();
-        btn.html('<span class="spinner-border spinner-border-sm"></span> Guardando...').prop('disabled', true);
+        saveContactoForm(this, '#modalNuevoContacto');
+    });
 
-        $.ajax({
-            url: 'controllers/ContactoAlertaController.php?action=guardar',
-            type: 'POST',
-            data: $(this).serialize(),
-            dataType: 'json',
-            success: function(response) {
-                if(response.status === 'success') {
-                    $('#modalContacto').modal('hide');
-                    tablaContactos.ajax.reload();
-                    Swal.fire('Éxito', response.message, 'success');
-                } else {
-                    Swal.fire('Error', response.message, 'error');
-                }
-            },
-            complete: function() {
-                btn.html(originalText).prop('disabled', false);
+    $('#formEditarContacto').off('submit').on('submit', function(e) {
+        e.preventDefault();
+        saveContactoForm(this, '#modalEditarContacto');
+    });
+}
+
+function saveContactoForm(formElem, modalId) {
+    const btn = $(formElem).find('button[type="submit"]');
+    const originalText = btn.html();
+    btn.html('<span class="spinner-border spinner-border-sm"></span> Guardando...').prop('disabled', true);
+
+    $.ajax({
+        url: 'controllers/ContactoAlertaController.php?action=guardar',
+        type: 'POST',
+        data: $(formElem).serialize(),
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 'success') {
+                $(modalId).modal('hide');
+                tablaContactos.ajax.reload();
+                Swal.fire('Éxito', response.message, 'success');
+            } else {
+                Swal.fire('Error', response.message, 'error');
             }
-        });
+        },
+        complete: function() {
+            btn.html(originalText).prop('disabled', false);
+        }
     });
 }
 
 window.openModalNuevoContacto = function() {
-    $('#formContacto')[0].reset();
-    $('#contacto_id').val('');
-    $('#modalContactoTitle').html('<i class="bi bi-person-lines-fill"></i> Registrar Contacto');
-    $('#modalContacto').modal('show');
+    if ($('#formNuevoContacto').length) $('#formNuevoContacto')[0].reset();
+    $('#modalNuevoContacto').modal('show');
 };
 
 window.editarContacto = function(id) {
@@ -70,11 +77,10 @@ window.editarContacto = function(id) {
         type: 'GET',
         dataType: 'json',
         success: function(data) {
-            $('#contacto_id').val(data.id);
-            $('#contacto_nombre').val(data.nombre);
-            $('#contacto_telefono').val(data.telefono);
-            $('#modalContactoTitle').html('<i class="bi bi-pencil-square"></i> Editar Contacto');
-            $('#modalContacto').modal('show');
+            $('#edit_contacto_id').val(data.id);
+            $('#edit_contacto_nombre').val(data.nombre);
+            $('#edit_contacto_telefono').val(data.telefono);
+            $('#modalEditarContacto').modal('show');
         }
     });
 };

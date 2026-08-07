@@ -156,31 +156,7 @@ if (!isset($_SESSION['user_id'])) {
               </a>
             </li>
 
-            <!-- Color Mode Toggle -->
-            <li class="nav-item dropdown">
-              <a class="nav-link" href="#" id="bd-theme" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-sun-fill" data-lte-theme-icon="light"></i>
-                <i class="bi bi-moon-fill d-none" data-lte-theme-icon="dark"></i>
-                <i class="bi bi-circle-half d-none" data-lte-theme-icon="auto"></i>
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bd-theme" style="--bs-dropdown-min-width: 8rem">
-                <li>
-                  <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light">
-                    <i class="bi bi-sun-fill me-2"></i> Claro
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark">
-                    <i class="bi bi-moon-fill me-2"></i> Oscuro
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="dropdown-item d-flex align-items-center active" data-bs-theme-value="auto">
-                    <i class="bi bi-circle-half me-2"></i> Auto
-                  </button>
-                </li>
-              </ul>
-            </li>
+
 
             <!-- User Menu -->
             <li class="nav-item dropdown user-menu">
@@ -268,12 +244,7 @@ if (!isset($_SESSION['user_id'])) {
                   <p>NOC Multigráfica</p>
                 </a>
               </li>
-              <li class="nav-item">
-                <a href="#" class="nav-link" data-view="traceroute">
-                  <i class="nav-icon bi bi-signpost-split"></i>
-                  <p>Traceroute</p>
-                </a>
-              </li>
+
               <li class="nav-item">
                 <a href="#" class="nav-link" data-view="speedtest">
                   <i class="nav-icon bi bi-speedometer"></i>
