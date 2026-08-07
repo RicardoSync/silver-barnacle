@@ -1,0 +1,24 @@
+# 1. Deshabilitar la navegación de directorios
+Options -Indexes
+
+# 2. Ocultar la información del servidor en páginas de error generadas por Apache
+ServerSignature Off
+
+# 3. Proteger archivos sensibles por extensión
+<FilesMatch "\.(env|sql|sh|log|ini|lock|json)$">
+    Require all denied
+</FilesMatch>
+
+# Proteger específicamente tu script de instalación y base de datos local
+<FilesMatch "^(install\.sh|database\.sql)$">
+    Require all denied
+</FilesMatch>
+
+# 4. Bloquear el acceso directo desde el navegador a carpetas internas del backend
+# (Cualquier petición directa devolverá un error 404 No Encontrado)
+RedirectMatch 404 ^/(DAO|DTO|cron|includes|partials|scripts|vendor)/.*$
+
+# 5. Evitar que se lean los propios archivos .htaccess o .htpasswd
+<FilesMatch "^\.ht">
+    Require all denied
+</FilesMatch>
